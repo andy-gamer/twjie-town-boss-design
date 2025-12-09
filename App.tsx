@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Skull, Heart } from 'lucide-react';
 import { GameState, RoomId, PlayerState, BossState } from './types';
-import { ROOMS, ITEMS, PLAYER_SPEED, BOSS_SPEED } from './data';
+import { ROOMS, ITEMS, PLAYER_SPEED, BOSS_SPEED, SCREEN_WIDTH } from './data';
 import { useInput, useGameLoop } from './hooks';
-import { WorldRenderer, HUD, DialogueBox, ThoughtBubble } from './components';
+import { WorldRenderer, HUD, DialogueBox } from './components';
 
 export default function App() {
   // --- STATE ---
@@ -30,6 +30,10 @@ export default function App() {
   const [dialogueIndex, setDialogueIndex] = useState(0);
   const [tutorialStep, setTutorialStep] = useState(0); 
   
+  // Cutscene & Camera State
+  const [isCutscene, setIsCutscene] = useState(false);
+  const [cameraOverride, setCameraOverride] = useState<number | null>(null);
+  
   // Floating thought bubble state
   const [thought, setThought] = useState<string | null>(null);
   const thoughtTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -42,10 +46,49 @@ export default function App() {
   const keys = useInput();
   
   // Derived Inputs
-  const isRevealing = keys.current.has(' ') || keys.current.has('space');
+  const isRevealing = keys.current.has('f');
   const isFlashlightOn = keys.current.has('shift');
   const isMoving = keys.current.has('w') || keys.current.has('a') || keys.current.has('s') || keys.current.has('d') ||
                    keys.current.has('arrowup') || keys.current.has('arrowleft') || keys.current.has('arrowdown') || keys.current.has('arrowright');
+
+  // --- PROGRESSION LOGIC ---
+  // Returns true if the door is locked by vines
+  const isDoorLocked = useCallback((doorId: string) => {
+      const invCount = player.inventory.length; // Number of key items collected (excluding yearbook if handled separately)
+      
+      // Progression:
+      // 0 Items: Only Left Hall (Father/Belt) is open.
+      // 1 Item (Belt): Unlocks Right Hall (Hiding/Diary).
+      // 2 Items (Diary): Unlocks Stairs Left (Brother/Trophy).
+      // 3 Items (Trophy): Unlocks Stairs Right (Crying/Toy).
+      // 4 Items (Toy): Unlocks Sound Room (Yearbook).
+
+      if (doorId === 'to_hall_left') return false; // Always open first
+      if (doorId === 'to_hall_right') return invCount < 1;
+      if (doorId === 'stairs_up_l') return invCount < 2;
+      if (doorId === 'stairs_up_r') return invCount < 3;
+      if (doorId === 'to_sound_sl' || doorId === 'to_sound_sr') return invCount < 4;
+
+      return false;
+  }, [player.inventory]);
+
+  // --- HELPER: OBJECTIVE TEXT ---
+  const getObjective = () => {
+    if (gameState === GameState.INTRO) return "跟隨人影進入校園";
+    if (gameState === GameState.BOSS_FIGHT) return "擊敗心中的夢魘！(Shift手電筒)";
+    if (gameState === GameState.ENDING_A || gameState === GameState.ENDING_B) return "遊戲結束";
+    
+    // Exploration Progression Hints
+    const invCount = player.inventory.length;
+    const hasYearbook = player.inventory.includes(ITEMS.YEARBOOK);
+
+    if (hasYearbook) return "回到大禮堂舞台，將碎片放上祭壇";
+    if (invCount === 4) return "前往二樓音控室，找出最後的真相";
+    if (invCount === 3) return "前往二樓右側，尋找最後的碎片";
+    if (invCount === 2) return "前往二樓左側，尋找哥哥的線索";
+    if (invCount === 1) return "前往一樓右側走廊探索";
+    return "前往一樓左側走廊探索";
+  };
 
   // --- LOGIC ---
   
@@ -54,6 +97,51 @@ export default function App() {
       setThought(text);
       thoughtTimeoutRef.current = setTimeout(() => setThought(null), 4000);
   }, []);
+
+  // CUTSCENE: Enter Lobby Logic
+  useEffect(() => {
+    const triggerId = 'lobby_cutscene_initial';
+    if (player.room === RoomId.LOBBY && !processedTriggers.current.has(triggerId)) {
+        processedTriggers.current.add(triggerId);
+        
+        // Start Cutscene Sequence
+        setIsCutscene(true);
+        setCameraOverride(0); // Start camera at door
+
+        // 1. Pan Camera to Stage (Center ~ 600)
+        let panProgress = 0;
+        const panInterval = setInterval(() => {
+            panProgress += 10;
+            if (panProgress >= 250) { // Target camera X
+                clearInterval(panInterval);
+                setCameraOverride(250); // Hold at stage
+                
+                // 2. Trigger Dialogue
+                setTimeout(() => {
+                     setDialogue([
+                         "那孩子... 跑到舞台上了？",
+                         "（舞台中間的紅布幕後，隱約有個人影。）",
+                         "（他看起來... 被荊棘死死纏住了。）",
+                         "（其他的門也被黑色的藤蔓封鎖了...）",
+                         "我必須先去唯一開著的左側走廊看看。"
+                     ]);
+                }, 500);
+            } else {
+                setCameraOverride(panProgress);
+            }
+        }, 16);
+    }
+  }, [player.room]);
+
+  // End Cutscene when dialogue closes
+  useEffect(() => {
+      const triggerId = 'lobby_cutscene_initial';
+      if (processedTriggers.current.has(triggerId) && isCutscene && !dialogue) {
+          setIsCutscene(false);
+          setCameraOverride(null); // Release camera
+      }
+  }, [dialogue, isCutscene]);
+
 
   const updateBoss = useCallback((prevBoss: BossState, currentPlayer: PlayerState) => {
     let nextBoss = { ...prevBoss };
@@ -121,6 +209,7 @@ export default function App() {
 
   const update = useCallback((time: number) => {
     if (dialogue) return; // Pause updates during dialogue
+    if (isCutscene) return; // Pause inputs during cutscene
 
     // -- Tutorial Progress --
     const hasMoved = isMoving;
@@ -128,7 +217,18 @@ export default function App() {
     if (tutorialStep === 1 && isRevealing) setTutorialStep(2);
     if (tutorialStep === 2 && isFlashlightOn) setTutorialStep(3);
 
-    // -- Player Movement (Normalized Vector) --
+    // -- Intro Shadow Boy Animation --
+    if (player.room === RoomId.BUS_STOP) {
+        const shadowBoy = ROOMS[RoomId.BUS_STOP].entities.find(e => e.id === 'shadow_boy_intro');
+        if (shadowBoy) {
+            const dist = Math.abs(player.x - shadowBoy.x);
+            if (dist < 200 && shadowBoy.x < 750) {
+                shadowBoy.x += 2; 
+            }
+        }
+    }
+
+    // -- Player Movement --
     setPlayer(prev => {
       let dx = 0;
       let dy = 0;
@@ -138,12 +238,10 @@ export default function App() {
       if (keys.current.has('a') || keys.current.has('arrowleft')) dx -= 1;
       if (keys.current.has('d') || keys.current.has('arrowright')) dx += 1;
 
-      // Normalize diagonal movement and adjust Aspect Ratio for 2.5D feel
-      // Y movement is deliberately slower to simulate depth walking
       if (dx !== 0 || dy !== 0) {
           const length = Math.sqrt(dx*dx + dy*dy);
           dx = (dx / length) * PLAYER_SPEED;
-          dy = (dy / length) * PLAYER_SPEED * 0.6; // Y is 60% speed of X
+          dy = (dy / length) * PLAYER_SPEED * 0.6; 
       }
 
       let nextX = prev.x + dx;
@@ -159,39 +257,20 @@ export default function App() {
       if (nextX < 0) nextX = 0;
       if (nextX > room.width - prev.w) nextX = room.width - prev.w;
       
-      const floorTop = 380; // Adjusted for new visuals
-      const floorBottom = 540; // Adjusted for floor bar
+      const floorTop = 380; 
+      const floorBottom = 540; 
       if (nextY < floorTop) nextY = floorTop;
       if (nextY > floorBottom - prev.h) nextY = floorBottom - prev.h;
 
       return { ...prev, x: nextX, y: nextY, facingRight: nextFacing };
     });
 
-    // -- Monologue Triggers --
-    const triggerId = (id: string) => `${player.room}_${id}`;
-    
-    // Trigger: Enter Lobby for first time
-    if (player.room === RoomId.LOBBY && player.x > 200 && !processedTriggers.current.has(triggerId('lobby_intro'))) {
-        showThought("這就是大禮堂... 比記憶中更加破舊了。");
-        processedTriggers.current.add(triggerId('lobby_intro'));
-    }
-    // Trigger: Approach Stage (Coordinates updated for new layout)
-    if (player.room === RoomId.LOBBY && player.x > 500 && player.x < 800 && !processedTriggers.current.has(triggerId('stage_approach'))) {
-        showThought("舞台... 那些紅色的布幕，看起來像凝固的血。");
-        processedTriggers.current.add(triggerId('stage_approach'));
-    }
-    // Trigger: Sound Room
-    if (player.room === RoomId.SOUND_ROOM && !processedTriggers.current.has(triggerId('sound_enter'))) {
-        showThought("這裡可以俯瞰整個舞台。就像... 審判席一樣。");
-        processedTriggers.current.add(triggerId('sound_enter'));
-    }
-
     // -- Boss Logic --
     if (gameState === GameState.BOSS_FIGHT && boss.active && boss.health > 0) {
         setBoss(prev => updateBoss(prev, player));
     }
 
-  }, [gameState, dialogue, boss.active, boss.health, tutorialStep, isRevealing, isFlashlightOn, player, updateBoss, keys, showThought, isMoving]);
+  }, [gameState, dialogue, boss.active, boss.health, tutorialStep, isRevealing, isFlashlightOn, player, updateBoss, keys, showThought, isMoving, isCutscene]);
 
   useGameLoop(update);
 
@@ -201,20 +280,17 @@ export default function App() {
         if (dialogueIndex < dialogue.length - 1) {
             setDialogueIndex(i => i + 1);
         } else {
-            // Dialogue ended
             setDialogue(null);
             setDialogueIndex(0);
             
             // SPECIAL TRIGGER: YEARBOOK PICKUP
             if (player.inventory.includes(ITEMS.YEARBOOK) && (gameState === GameState.INTRO || gameState === GameState.EXPLORATION)) {
-                // Start Distortion Effect
                 setIsDistorting(true);
                 showThought("不... 頭好痛...");
-                
                 setTimeout(() => {
                     setGameState(GameState.CORRUPTED);
-                    setIsDistorting(false); // End distortion after transition
-                }, 1500);
+                    setIsDistorting(false); 
+                }, 2000);
             }
         }
         return;
@@ -222,12 +298,9 @@ export default function App() {
 
     const room = ROOMS[player.room];
     
-    // Find all valid interaction candidates
+    // Find interaction candidates
     const candidates = room.entities.filter(e => {
-        // Filter out items already in inventory
         if (e.type === 'item' && player.inventory.includes(e.id)) return false;
-
-        // Filter based on current visibility mode
         const isVisible = (e.visibleInNormal && !isRevealing) || 
                           (e.visibleInReveal && isRevealing) || 
                           (e.visibleInNormal && e.visibleInReveal);
@@ -235,14 +308,11 @@ export default function App() {
 
         const dx = (player.x + player.w/2) - (e.x + e.w/2);
         const dy = (player.y + player.h/2) - (e.y + e.h/2);
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        
-        return dist < 100;
+        return Math.sqrt(dx*dx + dy*dy) < 100;
     });
 
     if (candidates.length === 0) return;
 
-    // Prioritize the closest one
     candidates.sort((a, b) => {
         const distA = Math.hypot((player.x + player.w/2) - (a.x + a.w/2), (player.y + player.h/2) - (a.y + a.h/2));
         const distB = Math.hypot((player.x + player.w/2) - (b.x + b.w/2), (player.y + player.h/2) - (b.y + b.h/2));
@@ -251,14 +321,23 @@ export default function App() {
 
     const nearby = candidates[0];
 
-    // Execute Interaction
+    // Handle Door Interactions (with Locking Logic)
     if (nearby.type === 'door' && nearby.targetRoom) {
-            let targetX = nearby.targetX || 100;
-            setPlayer(p => ({...p, room: nearby.targetRoom!, x: targetX}));
-            
-            if (gameState === GameState.INTRO && nearby.targetRoom === RoomId.LOBBY) {
-                setGameState(GameState.EXPLORATION);
-            }
+        if (isDoorLocked(nearby.id)) {
+            setDialogue([
+                "這扇門被黑色的藤蔓死死封住了。",
+                "必須先找到解開這個心結的關鍵碎片。"
+            ]);
+            showThought("打不開...");
+            return;
+        }
+
+        let targetX = nearby.targetX || 100;
+        setPlayer(p => ({...p, room: nearby.targetRoom!, x: targetX}));
+        
+        if (gameState === GameState.INTRO && nearby.targetRoom === RoomId.LOBBY) {
+            setGameState(GameState.EXPLORATION);
+        }
     } 
     else if (nearby.type === 'item') {
         if (!player.inventory.includes(nearby.id)) {
@@ -270,21 +349,20 @@ export default function App() {
         const required = [ITEMS.SHARD_TROPHY, ITEMS.SHARD_TOY, ITEMS.BELT_BUCKLE, ITEMS.DIARY_PAGE];
         const collected = required.filter(i => player.inventory.includes(i));
         
-        if (collected.length >= 3) {
+        if (collected.length >= 4 && player.inventory.includes(ITEMS.YEARBOOK)) {
                 setGameState(GameState.BOSS_FIGHT);
-                setBoss(b => ({...b, active: true, x: 600, y: 350})); // Spawn boss at new stage center
+                setBoss(b => ({...b, active: true, x: 600, y: 350}));
                 setDialogue([
-                    "你將記憶碎片放上舞台...",
+                    "你將畢業紀念冊與碎片放上舞台...",
                     "九重葛開始瘋狂蠕動！",
                     "家豪發出痛苦的尖叫：「不要看我！不要看裡面！」",
-                    "【戰鬥開始】按住 SPACE 看取核心，並用 SHIFT 手電筒照射來造成傷害！"
+                    "【戰鬥開始】按住 F 看取核心，並用 SHIFT 手電筒照射來造成傷害！"
                 ]);
         } else {
-                setDialogue([
-                    "還缺了一些東西...",
-                    `你需要找到家豪的記憶碎片。目前找到 (${collected.length}/4)。`,
-                    "去一樓和二樓的四個角落，用「看取」尋找真相。"
-                ]);
+             setDialogue([
+                "祭壇上需要獻上四個記憶碎片以及關鍵的「畢業紀念冊」。",
+                "當一切準備就緒，才能喚醒真正的他。"
+             ]);
         }
     }
     else if (nearby.dialogue) {
@@ -309,7 +387,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [player, gameState, dialogue, dialogueIndex, boss]);
+  }, [player, gameState, dialogue, dialogueIndex, boss, isDoorLocked]);
 
 
   // --- RENDERING ---
@@ -326,7 +404,7 @@ export default function App() {
               
               <div className="flex flex-col items-center space-y-3 text-sm text-gray-500 relative z-10 bg-black/50 p-6 rounded border border-gray-800 backdrop-blur-sm">
                   <div className="flex items-center gap-3"><span className="border border-gray-600 px-2 py-1 rounded text-gray-300">W A S D</span> <span className="text-xs">移動 Movement</span></div>
-                  <div className="flex items-center gap-3"><span className="border border-gray-600 px-2 py-1 rounded text-gray-300 w-20 text-center">SPACE</span> <span className="text-xs">看取 Reveal</span></div>
+                  <div className="flex items-center gap-3"><span className="border border-gray-600 px-2 py-1 rounded text-gray-300 w-20 text-center">F</span> <span className="text-xs">看取 Reveal</span></div>
                   <div className="flex items-center gap-3"><span className="border border-gray-600 px-2 py-1 rounded text-gray-300 w-20 text-center">SHIFT</span> <span className="text-xs">手電筒 Flashlight</span></div>
                   <div className="flex items-center gap-3"><span className="border border-gray-600 px-2 py-1 rounded text-gray-300 w-20 text-center">E</span> <span className="text-xs">互動 Interact</span></div>
               </div>
@@ -374,6 +452,14 @@ export default function App() {
       );
   }
 
+  // Camera Logic (Calculated or Overridden by Cutscene)
+  const roomWidth = ROOMS[player.room].width;
+  const calculatedCameraX = Math.max(0, Math.min(player.x - SCREEN_WIDTH/2, roomWidth - SCREEN_WIDTH));
+  const finalCameraX = cameraOverride !== null ? cameraOverride : calculatedCameraX;
+  
+  const playerScreenX = (player.x - finalCameraX) + player.w / 2;
+  const playerScreenY = player.y;
+
   return (
     <div className="flex items-center justify-center w-screen h-screen bg-[#050505] select-none relative overflow-hidden">
         <WorldRenderer 
@@ -386,6 +472,8 @@ export default function App() {
             isDistorting={isDistorting}
             thought={thought}
             isMoving={isMoving}
+            cameraX={finalCameraX}
+            isDoorLocked={isDoorLocked} // Pass locking logic to renderer
         />
 
         <HUD 
@@ -394,16 +482,14 @@ export default function App() {
             isFlashlightOn={isFlashlightOn}
             inventory={player.inventory}
             boss={boss}
+            objective={getObjective()}
         />
 
-        {dialogue && <DialogueBox text={dialogue[dialogueIndex]} />}
-
-        {gameState === GameState.INTRO && !dialogue && (
-            <div className="fixed bottom-20 left-1/2 -translate-x-1/2 text-center text-white/40 text-xs animate-pulse z-50 font-mono">
-                {tutorialStep === 0 && "[ USE W A S D TO MOVE ]"}
-                {tutorialStep === 1 && "[ HOLD SPACE TO REVEAL SECRETS ]"}
-                {tutorialStep === 2 && "[ HOLD SHIFT FOR LIGHT ]"}
-            </div>
+        {dialogue && (
+            <DialogueBox 
+                text={dialogue[dialogueIndex]} 
+                position={{ x: playerScreenX, y: playerScreenY }}
+            />
         )}
     </div>
   );

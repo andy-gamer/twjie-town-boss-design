@@ -134,16 +134,26 @@
         100% { transform: translate(0) }
       }
 
-      /* WALKING SWAY (Not Jumping) */
-      .walking-sway {
-        animation: walk-sway 0.5s infinite linear;
+      /* WALKING ANIMATION */
+      .leg-l { animation: walk-l 0.6s infinite ease-in-out; }
+      .leg-r { animation: walk-r 0.6s infinite ease-in-out; }
+
+      @keyframes walk-l {
+        0%, 100% { transform: rotate(15deg); }
+        50% { transform: rotate(-15deg); }
       }
-      @keyframes walk-sway {
-        0% { transform: rotate(0deg) translateY(0); }
-        25% { transform: rotate(2deg) translateY(-1px); }
-        50% { transform: rotate(0deg) translateY(0); }
-        75% { transform: rotate(-2deg) translateY(-1px); }
-        100% { transform: rotate(0deg) translateY(0); }
+      @keyframes walk-r {
+        0%, 100% { transform: rotate(-15deg); }
+        50% { transform: rotate(15deg); }
+      }
+      
+      .walking-bounce {
+         animation: walk-bounce 0.3s infinite ease-in-out alternate;
+      }
+      
+      @keyframes walk-bounce {
+        from { transform: translateY(0); }
+        to { transform: translateY(-2px); }
       }
 
     </style>

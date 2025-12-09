@@ -17,9 +17,15 @@ export const ITEMS = {
 
 // --- HELPER ---
 const createDoor = (id: string, x: number, y: number, targetRoom: RoomId, targetX: number, label: string): Entity => ({
-  id, type: 'door', x, y, w: 70, h: 140, // Slightly larger doors
+  id, type: 'door', x, y, w: 70, h: 140,
   interactable: true, visibleInNormal: true, visibleInReveal: true,
   targetRoom, targetX, label, color: '#374151'
+});
+
+const createProp = (id: string, x: number, y: number, w: number, h: number, label: string, color?: string): Entity => ({
+  id, type: 'decoration', x, y, w, h,
+  interactable: false, visibleInNormal: true, visibleInReveal: true,
+  label, color: color || '#525252'
 });
 
 // --- LEVEL DESIGN ---
@@ -38,12 +44,13 @@ export const ROOMS: Record<RoomId, RoomData> = {
         revealText: "（不可直視的殘影...似乎在指引方向）", color: '#dc2626',
         icon: 'ghost'
       },
+      createProp('bus_sign', 150, 350, 20, 150, '公車站牌', '#64748b'),
+      createProp('bench_broken', 400, 450, 100, 40, '長椅', '#475569'),
       createDoor('enter_school', 700, 360, RoomId.LOBBY, 50, '進入校園')
     ]
   },
 
   // 2. 大禮堂大廳 + 舞台 (樞紐)
-  // Layout Order: DoorLeft -> StairsLeft -> STAGE -> StairsRight -> DoorRight
   [RoomId.LOBBY]: {
     id: RoomId.LOBBY,
     name: "大禮堂",
@@ -55,17 +62,20 @@ export const ROOMS: Record<RoomId, RoomData> = {
       createDoor('to_hall_left', 50, 360, RoomId.HALL_LEFT, 700, '左側走廊'),
       createDoor('stairs_up_l', 200, 360, RoomId.SEATS_LEFT, 100, '左側樓梯 (2F)'),
 
-      // --- STAGE AREA (CENTERED) ---
-      // Area roughly between x=350 and x=950
+      // Decor
+      createProp('bench_l', 150, 480, 80, 30, '積灰長椅'),
+      createProp('notice_board', 300, 300, 60, 50, '公佈欄', '#78350f'),
+
+      // --- STAGE AREA ---
       {
         id: 'curtain_left', type: 'decoration', x: 400, y: 100, w: 120, h: 500,
         interactable: false, visibleInNormal: true, visibleInReveal: true,
-        label: '', color: '#7f1d1d' // Red Curtain
+        label: '', color: '#7f1d1d' 
       },
       {
         id: 'curtain_right', type: 'decoration', x: 880, y: 100, w: 120, h: 500,
         interactable: false, visibleInNormal: true, visibleInReveal: true,
-        label: '', color: '#7f1d1d' // Red Curtain
+        label: '', color: '#7f1d1d' 
       },
       {
         id: 'lobby_sign', type: 'decoration', x: 650, y: 150, w: 100, h: 50,
@@ -79,7 +89,7 @@ export const ROOMS: Record<RoomId, RoomData> = {
         color: '#a21caf', 
         label: '被束縛的孩子',
         icon: 'flower',
-        dialogue: ["（一個男孩被九重葛死死纏住，藤蔓刺入他的皮膚。）", "（他低著頭，發出微弱的啜泣聲。）", "（你需要找到解開這些心結的方法。）"]
+        dialogue: ["（他被黑色的藤蔓死死纏住。）", "（藤蔓延伸到了學校的各個角落...）", "（我必須找到那些源頭，斬斷這些束縛。）"]
       },
       {
         id: 'boss_altar', type: 'item', x: 600, y: 500, w: 200, h: 30,
@@ -88,13 +98,9 @@ export const ROOMS: Record<RoomId, RoomData> = {
         label: '獻上記憶碎片',
         icon: 'altar'
       },
-      {
-        id: 'ending_hint', type: 'decoration', x: 820, y: 450, w: 50, h: 50,
-        interactable: true, visibleInNormal: true, visibleInReveal: true,
-        label: '舊報紙',
-        dialogue: ["報紙一角：「...九姑娘廟火災，倖存男童下落不明...」", "（這是關於我家人的報導？）"]
-      },
-
+      
+      createProp('flower_pot_broken', 900, 480, 30, 30, '打破的花盆', '#b45309'),
+      
       // Right Side
       createDoor('stairs_up_r', 1100, 360, RoomId.SEATS_RIGHT, 650, '右側樓梯 (2F)'),
       createDoor('to_hall_right', 1250, 360, RoomId.HALL_RIGHT, 100, '右側走廊'),
@@ -111,8 +117,12 @@ export const ROOMS: Record<RoomId, RoomData> = {
     entities: [
        createDoor('to_seats_left', 50, 360, RoomId.SEATS_LEFT, 700, '左側座位區'),
        createDoor('to_seats_right', 700, 360, RoomId.SEATS_RIGHT, 100, '右側座位區'),
+       
+       createProp('console_desk', 300, 400, 200, 60, '控制台', '#334155'),
+       createProp('chair_fallen', 550, 450, 40, 40, '倒下的椅子', '#475569'),
+
        {
-         id: ITEMS.YEARBOOK, type: 'item', x: 400, y: 400, w: 40, h: 40,
+         id: ITEMS.YEARBOOK, type: 'item', x: 400, y: 380, w: 40, h: 40,
          interactable: true, visibleInNormal: true, visibleInReveal: true,
          color: '#fbbf24', label: '畢業紀念冊',
          icon: 'book',
@@ -136,6 +146,10 @@ export const ROOMS: Record<RoomId, RoomData> = {
     entities: [
       createDoor('to_lobby_sl', 50, 360, RoomId.LOBBY, 200, '下樓'),
       createDoor('to_sound_sl', 700, 360, RoomId.SOUND_ROOM, 100, '音控室'),
+      
+      createProp('cabinet', 250, 300, 80, 180, '獎盃櫃', '#78350f'),
+      createProp('papers', 500, 490, 40, 10, '散落的考卷', '#e5e5e5'),
+
       {
         id: 'trophy_shelf', type: 'decoration', x: 350, y: 350, w: 150, h: 100,
         interactable: false, visibleInNormal: true, visibleInReveal: false, 
@@ -166,6 +180,10 @@ export const ROOMS: Record<RoomId, RoomData> = {
     entities: [
       createDoor('to_lobby_sr', 700, 360, RoomId.LOBBY, 1100, '下樓'),
       createDoor('to_sound_sr', 50, 360, RoomId.SOUND_ROOM, 600, '音控室'),
+      
+      createProp('toy_box', 300, 450, 60, 40, '玩具箱', '#1e3a8a'),
+      createProp('drawing', 550, 300, 40, 50, '塗鴉', '#fca5a5'),
+
       {
         id: 'broken_toys', type: 'decoration', x: 400, y: 450, w: 80, h: 40,
         interactable: false, visibleInNormal: true, visibleInReveal: true,
@@ -195,6 +213,10 @@ export const ROOMS: Record<RoomId, RoomData> = {
     backgroundClass: "bg-orange-950",
     entities: [
       createDoor('back_lobby_hl', 700, 360, RoomId.LOBBY, 50, '大廳'),
+      
+      createProp('shoes', 150, 480, 30, 20, '男皮鞋', '#1c1917'),
+      createProp('bottle', 450, 470, 15, 30, '空酒瓶', '#15803d'),
+
       {
         id: 'mirror', type: 'decoration', x: 200, y: 300, w: 60, h: 100,
         interactable: false, visibleInNormal: true, visibleInReveal: true,
@@ -224,6 +246,10 @@ export const ROOMS: Record<RoomId, RoomData> = {
     backgroundClass: "bg-emerald-950",
     entities: [
       createDoor('back_lobby_hr', 50, 360, RoomId.LOBBY, 1250, '大廳'),
+      
+      createProp('bucket', 300, 460, 30, 30, '水桶', '#3b82f6'),
+      createProp('mop', 340, 350, 10, 140, '拖把', '#d4d4d4'),
+
       {
         id: 'cleaning_supplies', type: 'decoration', x: 500, y: 400, w: 80, h: 80,
         interactable: false, visibleInNormal: true, visibleInReveal: true,
