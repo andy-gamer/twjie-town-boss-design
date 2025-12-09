@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Skull, Heart, Leaf } from 'lucide-react';
 import { GameState, RoomId, PlayerState, BossState, Entity, RoomData } from './types';
@@ -129,15 +128,9 @@ export default function App() {
 
   // --- PROGRESSION LOGIC ---
   const isDoorLocked = useCallback((doorId: string) => {
-      const invCount = player.inventory.length; 
-      
-      // Story locks
-      if (doorId === 'stairs_up_l') return invCount < 2;
-      if (doorId === 'stairs_up_r') return invCount < 3;
-      if (doorId === 'to_sound_sl' || doorId === 'to_sound_sr') return invCount < 4;
-
+      // User requested no restrictions on entering rooms
       return false;
-  }, [player.inventory]);
+  }, []);
 
   const showThought = useCallback((text: string) => {
       if (thoughtTimeoutRef.current) clearTimeout(thoughtTimeoutRef.current);
@@ -227,13 +220,15 @@ export default function App() {
                      setDialogue([
                          "等等！那是... 家豪？",
                          "（為什麼他會出現在這裡？）",
-                         "（按 [F] 開啟手電筒，長按 [Space] 使用強力光束燒灼。）"
+                         "（按 [F] 開啟手電筒，長按 [Space] 使用強力光束燒灼。）",
+                         "（按 [E] 進入校門。）"
                      ]);
                      // Auto turn on flashlight for player
                      setPlayer(p => ({...p, flashlightOn: true}));
                  }
              }
          }
+         // Do NOT return here if introStep is 3, allow movement
          if (introStep < 3) return;
     }
 
@@ -252,8 +247,6 @@ export default function App() {
             newBattery = Math.min(MAX_BATTERY, prev.battery + BATTERY_RECHARGE_RATE);
         }
         
-        // Auto turn off high beam effect logic handled in renderer, but state keeps F on.
-        
         // Stamina
         let speed = PLAYER_SPEED;
         
@@ -264,23 +257,20 @@ export default function App() {
             newStamina = Math.min(MAX_STAMINA, prev.stamina + STAMINA_RECHARGE_RATE);
         }
 
-        // Movement
+        // Movement (Horizontal Only)
         let dx = 0;
-        let dy = 0;
+        let dy = 0; // No vertical movement from keys
 
-        if (keys.current.has('w') || keys.current.has('arrowup')) dy -= 1;
-        if (keys.current.has('s') || keys.current.has('arrowdown')) dy += 1;
+        // Only allow Left/Right movement from keys
         if (keys.current.has('a') || keys.current.has('arrowleft')) dx -= 1;
         if (keys.current.has('d') || keys.current.has('arrowright')) dx += 1;
 
-        if (dx !== 0 || dy !== 0) {
-            const length = Math.sqrt(dx*dx + dy*dy);
-            dx = (dx / length) * speed;
-            dy = (dy / length) * speed * 0.6; 
+        if (dx !== 0) {
+            dx = (dx > 0 ? 1 : -1) * speed;
         }
 
         let nextX = prev.x + dx;
-        let nextY = prev.y + dy;
+        let nextY = prev.y; // Keep Y constant unless changed by stairs/door
         let nextFacing = prev.facingRight;
         
         if (dx < 0) nextFacing = false;
@@ -291,12 +281,6 @@ export default function App() {
         if (nextX < 0) nextX = 0;
         if (nextX > room.width - prev.w) nextX = room.width - prev.w;
         
-        // Floor clamping
-        const floorTop = 250; 
-        const floorBottom = 540; 
-        if (nextY < floorTop) nextY = floorTop;
-        if (nextY > floorBottom - prev.h) nextY = floorBottom - prev.h;
-
         return { 
             ...prev, 
             x: nextX, 
@@ -330,7 +314,7 @@ export default function App() {
           if (dialogue) {
                // Skip dialogue
                if (key === 'e' || key === 'enter' || key === ' ') {
-                   handleInteraction();
+                   handleDialogueAdvance();
                }
                return;
           }
@@ -341,8 +325,8 @@ export default function App() {
           if (key === 'f') {
              setPlayer(p => ({ ...p, flashlightOn: !p.flashlightOn }));
           }
-          if (key === 'e' || key === 'enter') {
-              handleInteraction();
+          if (key === 'e') {
+              handleInteraction(); // Unified interaction
           }
       };
       
@@ -351,7 +335,7 @@ export default function App() {
   }, [player.inventory, player.battery, player.room, gameState, dialogue, boss, dialogueIndex]);
 
 
-  const handleInteraction = () => {
+  const handleDialogueAdvance = () => {
     if (dialogue) {
         if (dialogueIndex < dialogue.length - 1) {
             setDialogueIndex(i => i + 1);
@@ -368,9 +352,10 @@ export default function App() {
                 }, 2000);
             }
         }
-        return;
     }
+  };
 
+  const handleInteraction = () => {
     const room = ROOMS[player.room];
     const candidates = room.entities.filter(e => {
         if (e.type === 'item' && player.inventory.includes(e.id)) return false;
@@ -387,57 +372,48 @@ export default function App() {
 
     if (candidates.length === 0) return;
 
-    // Find closest
+    // Sort closest
     candidates.sort((a, b) => {
         const distA = Math.hypot((player.x + player.w/2) - (a.x + a.w/2), (player.y + player.h/2) - (a.y + a.h/2));
         const distB = Math.hypot((player.x + player.w/2) - (b.x + b.w/2), (player.y + player.h/2) - (b.y + b.h/2));
         return distA - distB;
     });
 
-    const nearby = candidates[0];
+    const target = candidates[0];
+
 
     // --- INTERACTION HANDLERS ---
     
     // 1. Stairs (Lobby Stage)
-    if (nearby.type === 'stairs' && nearby.targetY) {
-        setPlayer(p => ({ ...p, y: nearby.targetY! }));
+    if (target.type === 'stairs' && target.targetY) {
+        setPlayer(p => ({ ...p, y: target.targetY! }));
         playSound('door_open');
         return;
     }
 
     // 2. Doors
-    if (nearby.type === 'door' && nearby.targetRoom) {
-        // Locked Logic
-        if (isDoorLocked(nearby.id)) {
-            playSound('door_locked');
-            setDialogue([
-                "這扇門被黑色的藤蔓封鎖了。",
-                "（必須解開心結才能通過。）"
-            ]);
-            return;
-        }
-
+    if (target.type === 'door' && target.targetRoom) {
         playSound('door_open');
-        let targetX = nearby.targetX || 100;
-        setPlayer(p => ({...p, room: nearby.targetRoom!, x: targetX}));
+        let targetX = target.targetX || 100;
+        setPlayer(p => ({...p, room: target.targetRoom!, x: targetX}));
         
-        if (gameState === GameState.INTRO && nearby.targetRoom === RoomId.LOBBY) {
+        if (gameState === GameState.INTRO && target.targetRoom === RoomId.LOBBY) {
             setGameState(GameState.EXPLORATION);
         }
     } 
     // 3. Items 
-    else if (nearby.type === 'item') {
-        if (!player.inventory.includes(nearby.id)) {
+    else if (target.type === 'item') {
+        if (!player.inventory.includes(target.id)) {
             playSound('item_pickup');
             setPlayer(p => {
-                let stats = { ...p, inventory: [...p.inventory, nearby.id] };
+                let stats = { ...p, inventory: [...p.inventory, target.id] };
                 return stats;
             });
-            if (nearby.dialogue) setDialogue(nearby.dialogue);
+            if (target.dialogue) setDialogue(target.dialogue);
         }
     }
     // 4. Boss Altar
-    else if (nearby.id === 'boss_altar') {
+    else if (target.id === 'boss_altar') {
         const required = [ITEMS.SHARD_TROPHY, ITEMS.SHARD_TOY, ITEMS.BELT_BUCKLE, ITEMS.DIARY_PAGE];
         const collected = required.filter(i => player.inventory.includes(i));
         
@@ -457,8 +433,8 @@ export default function App() {
              ]);
         }
     }
-    else if (nearby.dialogue) {
-        setDialogue(nearby.dialogue);
+    else if (target.dialogue) {
+        setDialogue(target.dialogue);
     }
   };
 

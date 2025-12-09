@@ -1,12 +1,11 @@
-
 import React from 'react';
 import { DoorOpen, Ghost, Lock, User, Sparkles, AlertOctagon, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { Entity } from '../types';
 
 // Helper for Interaction Hint
-const InteractHint = ({label, visible}: {label?: string, visible: boolean}) => (
+const InteractHint = ({label, visible, keyName = "E"}: {label?: string, visible: boolean, keyName?: string}) => (
     <div className={`absolute -top-12 bg-white/90 text-black text-[10px] px-2 py-1 rounded shadow-lg transition-opacity duration-300 font-bold pointer-events-none z-40 whitespace-nowrap flex items-center gap-1 animate-bounce ${visible ? 'opacity-100' : 'opacity-0'}`}>
-        <span className="w-4 h-4 bg-black text-white rounded flex items-center justify-center text-[8px]">E</span>
+        <span className="min-w-[16px] h-4 bg-black text-white rounded flex items-center justify-center text-[8px] px-1">{keyName}</span>
         {label || "互動"}
     </div>
 );
@@ -30,7 +29,7 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
                  <div className="w-full h-full bg-gradient-to-t from-black/50 to-transparent border-x-2 border-white/10 flex items-center justify-center relative">
                      {isUp ? <ArrowUpCircle className="text-white/30 animate-bounce" /> : <ArrowDownCircle className="text-white/30 animate-bounce" />}
                  </div>
-                 {interactable && <InteractHint label={label} visible={!!isNear} />}
+                 {interactable && <InteractHint label={label} visible={!!isNear} keyName="E" />}
             </div>
          );
     }
@@ -66,7 +65,7 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
                         </>
                     )}
                 </div>
-                {interactable && !isLocked && <InteractHint visible={!!isNear} />}
+                {interactable && !isLocked && <InteractHint visible={!!isNear} keyName="E" />}
             </div>
         );
     }
@@ -92,7 +91,7 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
                         {label}
                     </div>
                 )}
-                {interactable && <InteractHint label="拾取" visible={!!isNear} />}
+                {interactable && <InteractHint label="拾取" visible={!!isNear} keyName="E" />}
             </div>
         );
     }
@@ -105,9 +104,9 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
                      <div className="text-purple-300 text-xs tracking-[0.2em] uppercase font-bold opacity-70 mt-auto mb-2">{label}</div>
                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_50%,rgba(88,28,135,0.5))] pointer-events-none" />
                  </div>
-                 {interactable && <InteractHint visible={!!isNear} />}
+                 {interactable && <InteractHint visible={!!isNear} keyName="E" />}
              </div>
-         );
+        );
     }
 
     // --- CURTAINS ---
@@ -137,7 +136,7 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
                         <Lock size={20} className="text-purple-300 drop-shadow-[0_0_10px_purple]" />
                      </div>
                 </div>
-                {interactable && <InteractHint visible={!!isNear} />}
+                {interactable && <InteractHint visible={!!isNear} keyName="E" />}
              </div>
         );
     }
@@ -159,7 +158,7 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
                     {icon === 'violence' && <div className="text-red-900 font-black text-6xl opacity-50 font-serif">/</div>}
                     {icon === 'hiding' && <div className="text-green-900 font-black text-lg opacity-50 font-serif">( )</div>}
                 </div>
-                 {interactable && <InteractHint visible={!!isNear} />}
+                 {interactable && <InteractHint visible={!!isNear} keyName="E" />}
             </div>
         );
     }

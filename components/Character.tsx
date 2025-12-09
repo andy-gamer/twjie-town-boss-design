@@ -6,9 +6,9 @@ import { PlayerState, BossState } from '../types';
 export const PlayerView = ({ player, isFlashlightOn, isMoving }: { player: PlayerState, isFlashlightOn: boolean, isMoving: boolean }) => {
     
     return (
-        <div className="absolute z-20 transition-all duration-200"
+        <div className="absolute z-20"
             style={{ left: player.x, top: player.y, width: player.w, height: player.h }}>
-                <div className={`relative w-full h-full transition-transform duration-200 ${player.facingRight ? '' : 'scale-x-[-1]'}`}>
+                <div className={`relative w-full h-full ${player.facingRight ? '' : 'scale-x-[-1]'}`}>
                     
                     {/* Legs Animation */}
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full flex justify-center gap-1">

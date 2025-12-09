@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Book, Trophy, Puzzle, Circle, FileText, ChevronDown, User, MapPin, AlertTriangle, Battery, Zap, Hammer, EyeOff } from 'lucide-react';
 import { BossState, PlayerState } from '../types';
@@ -77,7 +76,8 @@ export const HUD = ({
                 <div className="flex items-center gap-2">
                     <Battery size={16} className={`${battery < 20 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`} />
                     <div className="w-32 h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-600">
-                        <div className="h-full bg-yellow-400 transition-all duration-200" style={{ width: `${(battery / MAX_BATTERY) * 100}%` }} />
+                        {/* Removed transition for instant updates */}
+                        <div className="h-full bg-yellow-400" style={{ width: `${(battery / MAX_BATTERY) * 100}%` }} />
                     </div>
                     <span className="text-[10px] text-gray-500 font-mono">{Math.floor(battery)}%</span>
                 </div>
@@ -110,6 +110,10 @@ export const HUD = ({
             
             {/* Controls Help */}
             <div className="absolute top-6 right-6 flex flex-col items-end gap-2 z-50 select-none">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border bg-black/40 border-white/10 text-white/40">
+                    <span className="text-[10px] font-bold">E</span>
+                    <span className="text-xs">互動/進入</span>
+                </div>
                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${player.flashlightOn ? "bg-yellow-950/80 border-yellow-500 text-yellow-100" : "bg-black/40 border-white/10 text-white/40"}`}>
                     <span className="text-[10px] font-bold">F</span>
                     <span className="text-xs">手電筒</span>
@@ -121,10 +125,6 @@ export const HUD = ({
                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isRevealing ? "bg-purple-900/80 border-purple-500 text-purple-100" : "bg-black/40 border-white/10 text-white/40"}`}>
                     <span className="text-[10px] font-bold">Q</span>
                     <span className="text-xs">使用看取</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border bg-black/40 border-white/10 text-white/40">
-                    <span className="text-[10px] font-bold">ENTER</span>
-                    <span className="text-xs">進入</span>
                 </div>
             </div>
 

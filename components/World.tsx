@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { RoomData, PlayerState, BossState } from '../types';
 import { SCREEN_WIDTH, SCREEN_HEIGHT } from '../data';
@@ -42,24 +41,28 @@ export const WorldRenderer = ({
     const playerScreenY = player.y + player.h / 3; 
 
     // Light Logic:
-    let maskSize = '150px'; 
-    // Brighter ambient light (0.6 instead of 0.95/1)
-    let maskColor = 'transparent 5%, rgba(0,0,0,0.6) 30%, rgba(0,0,0,0.9) 70%'; 
+    let maskSize = '200px'; 
+    // Brighter ambient light: Opacity reduced from 0.6/0.9 to 0.4/0.75
+    let maskColor = 'transparent 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.75) 90%'; 
+    
+    // Low Battery Flicker
+    const isLowBattery = player.battery < 20 && player.flashlightOn;
+    const flickerOpacity = isLowBattery ? (Math.random() * 0.4 + 0.6) : 1;
 
     if (player.flashlightOn && player.battery > 0) {
         if (isHighBeam) {
              // High Beam (Space)
              maskSize = '600px';
-             maskColor = 'transparent 10%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.85) 90%';
+             maskColor = `transparent 10%, rgba(0,0,0,${0.1 * flickerOpacity}) 50%, rgba(0,0,0,${0.85 * flickerOpacity}) 90%`;
         } else {
              // Standard Beam (F)
              maskSize = '300px';
-             maskColor = 'transparent 5%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.85) 80%';
+             maskColor = `transparent 5%, rgba(0,0,0,${0.2 * flickerOpacity}) 40%, rgba(0,0,0,${0.8 * flickerOpacity}) 80%`;
         }
     } else {
-        // Off or Empty Battery
+        // Off or Empty Battery (Dimly lit, visible)
         maskSize = '150px';
-        maskColor = 'transparent 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.9) 80%';
+        maskColor = 'transparent 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.7) 90%';
     }
 
     return (
@@ -101,7 +104,7 @@ export const WorldRenderer = ({
             {/* Darkness Overlay (Fog of War) */}
             {!isRevealing && (
                 <div 
-                    className="absolute inset-0 z-40 pointer-events-none transition-all duration-200 ease-out"
+                    className="absolute inset-0 z-40 pointer-events-none transition-all duration-75 ease-out"
                     style={{
                         background: `radial-gradient(circle ${maskSize} at ${playerScreenX}px ${playerScreenY}px, ${maskColor})`
                     }}
