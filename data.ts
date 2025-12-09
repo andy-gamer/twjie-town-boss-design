@@ -4,17 +4,22 @@ import { RoomId, RoomData, Entity } from './types';
 // --- CONFIG ---
 export const PLAYER_SPEED = 5;
 export const SPRINT_SPEED = 9;
+export const CROUCH_SPEED = 2; // Slow movement when sneaking
 export const BOSS_SPEED = 2.0;
 export const SCREEN_WIDTH = 800;
 export const SCREEN_HEIGHT = 600;
 
 export const MAX_BATTERY = 100;
-export const BATTERY_DRAIN_RATE = 0.5; // High beam drains faster
-export const BATTERY_RECHARGE_RATE = 0.2; // Recharges when not using high beam
+export const BATTERY_DRAIN_NORMAL = 0.05; // Drain when F is on
+export const BATTERY_DRAIN_HIGH = 0.3;    // Drain when Space is held
+export const BATTERY_RECHARGE_RATE = 0.0; // No auto recharge now, must manage it
 
 export const MAX_STAMINA = 100;
 export const STAMINA_DRAIN_RATE = 0.8;
 export const STAMINA_RECHARGE_RATE = 0.4;
+
+export const ATTACK_DAMAGE_BASE = 15;
+export const ATTACK_COOLDOWN = 30; // Frames
 
 // --- ITEMS ---
 export const ITEMS = {
@@ -23,6 +28,9 @@ export const ITEMS = {
   SHARD_TOY: '家豪的玩具碎片',
   BELT_BUCKLE: '皮帶扣環',
   DIARY_PAGE: '家豪的日記頁',
+  // Stat Items
+  DUMBBELL: '生鏽的啞鈴', // +Strength
+  SNEAKERS: '舊布鞋',    // +Stealth
 };
 
 // --- HELPER ---
@@ -36,6 +44,18 @@ const createProp = (id: string, x: number, y: number, w: number, h: number, labe
   id, type: 'decoration', x, y, w, h,
   interactable: false, visibleInNormal: true, visibleInReveal: true,
   label, color: color || '#525252'
+});
+
+const createBreakable = (id: string, x: number, y: number, w: number, h: number, label: string): Entity => ({
+  id, type: 'breakable', x, y, w, h,
+  interactable: false, visibleInNormal: true, visibleInReveal: true,
+  hp: 50, label, color: '#7c2d12'
+});
+
+const createVent = (id: string, x: number, y: number, targetRoom: RoomId, targetX: number): Entity => ({
+  id, type: 'vent', x, y, w: 60, h: 40,
+  interactable: true, visibleInNormal: true, visibleInReveal: true,
+  targetRoom, targetX, label: '通風口 (蹲下)', color: '#171717'
 });
 
 // --- LEVEL DESIGN ---
@@ -56,7 +76,15 @@ export const ROOMS: Record<RoomId, RoomData> = {
       },
       createProp('bus_sign', 150, 350, 20, 150, '公車站牌', '#64748b'),
       createProp('bench_broken', 400, 450, 100, 40, '長椅', '#475569'),
-      createDoor('enter_school', 700, 360, RoomId.LOBBY, 50, '進入校園')
+      createDoor('enter_school', 700, 360, RoomId.LOBBY, 50, '進入校園'),
+      
+      // Tutorial Items
+      {
+        id: ITEMS.DUMBBELL, type: 'item', x: 250, y: 460, w: 30, h: 20,
+        interactable: true, visibleInNormal: true, visibleInReveal: true,
+        color: '#57534e', label: '生鏽啞鈴', icon: 'fist',
+        dialogue: ["撿到了「生鏽的啞鈴」。", "（雖然很重，但拿在手上讓人覺得自己更有力量。）", "【系統：力量提升！按 K 鍵可以攻擊或破壞障礙物】"]
+      }
     ]
   },
 
@@ -64,13 +92,16 @@ export const ROOMS: Record<RoomId, RoomData> = {
   [RoomId.LOBBY]: {
     id: RoomId.LOBBY,
     name: "大禮堂",
-    width: 1600, // Increased width for better camera movement
+    width: 1600, 
     height: 600,
     backgroundClass: "bg-stone-900", 
     entities: [
       // Left Side
       createDoor('to_hall_left', 50, 360, RoomId.HALL_LEFT, 700, '左側走廊'),
       createDoor('stairs_up_l', 200, 360, RoomId.SEATS_LEFT, 100, '左側樓梯 (2F)'),
+      
+      // Alternative Path: Blocked door to Right Hall (Needs breaking)
+      createBreakable('barricade_right', 1350, 320, 40, 200, '腐朽的木板 (可破壞)'),
 
       // Decor
       createProp('bench_l', 150, 480, 80, 30, '積灰長椅'),
@@ -93,8 +124,7 @@ export const ROOMS: Record<RoomId, RoomData> = {
         label: '校訓',
         dialogue: [
           "牆上掛著斑駁的校訓：「誠實、正直、服從」。", 
-          "那個年代的學校總是這樣，壓抑得讓人喘不過氣。",
-          "「服從」這兩個字... 上面似乎有深深的刮痕，像是有人用指甲絕望地摳抓過。"
+          "那個年代的學校總是這樣，壓抑得讓人喘不過氣。"
         ]
       },
       {
@@ -105,8 +135,6 @@ export const ROOMS: Record<RoomId, RoomData> = {
         icon: 'flower',
         dialogue: [
           "（舞台中央，一個瘦小的身影被黑色的荊棘死死纏繞。）", 
-          "（那些荊棘像是有生命一樣，隨著他的呼吸微微搏動，深深刺入他的皮膚。）", 
-          "「家豪...？」你試著呼喚，但他緊閉雙眼，表情痛苦扭曲。",
           "（藤蔓延伸到了學校的各個角落... 必須找到源頭斬斷它們。）"
         ]
       },
@@ -117,8 +145,6 @@ export const ROOMS: Record<RoomId, RoomData> = {
         label: '獻上記憶碎片',
         icon: 'altar'
       },
-      
-      createProp('flower_pot_broken', 1000, 480, 30, 30, '打破的花盆', '#b45309'),
       
       // Right Side
       createDoor('stairs_up_r', 1250, 360, RoomId.SEATS_RIGHT, 650, '右側樓梯 (2F)'),
@@ -146,11 +172,9 @@ export const ROOMS: Record<RoomId, RoomData> = {
          color: '#fbbf24', label: '畢業紀念冊',
          icon: 'book',
          dialogue: [
-             "（控制台上放著一本厚重的畢業紀念冊，封面滿是灰塵。）",
-             "（你顫抖著翻開它... 裡面所有學生的臉都被人用黑筆塗爛了。）",
-             "（唯獨這一頁... 是你和家豪的合照。）",
+             "（畢業紀念冊。唯獨這一頁... 是你和家豪的合照。）",
              "（你的臉是清晰的，但家豪的臉上被畫了一個巨大的紅色叉號。）",
-             "（頭好痛——記憶開始瘋狂湧入！畫面開始閃爍！）"
+             "（頭好痛——記憶開始瘋狂湧入！）"
          ]
        }
     ]
@@ -168,7 +192,14 @@ export const ROOMS: Record<RoomId, RoomData> = {
       createDoor('to_sound_sl', 700, 360, RoomId.SOUND_ROOM, 100, '音控室'),
       
       createProp('cabinet', 250, 300, 80, 180, '獎盃櫃', '#78350f'),
-      createProp('papers', 500, 490, 40, 10, '散落的考卷', '#e5e5e5'),
+      
+      // Stealth Item
+      {
+        id: ITEMS.SNEAKERS, type: 'item', x: 150, y: 480, w: 30, h: 20,
+        interactable: true, visibleInNormal: true, visibleInReveal: true,
+        color: '#3b82f6', label: '舊布鞋', icon: 'shoe',
+        dialogue: ["撿到了「舊布鞋」。", "（軟底的鞋子，走起路來幾乎沒有聲音。）", "【系統：潛行提升！按 C 鍵蹲下移動，敵人更難發現你】"]
+      },
 
       {
         id: 'trophy_shelf', type: 'decoration', x: 350, y: 350, w: 150, h: 100,
@@ -185,12 +216,7 @@ export const ROOMS: Record<RoomId, RoomData> = {
         id: ITEMS.SHARD_TROPHY, type: 'item', x: 380, y: 480, w: 30, h: 30,
         interactable: true, visibleInNormal: false, visibleInReveal: true,
         color: '#fbbf24', label: '碎片', icon: 'shard',
-        dialogue: [
-          "撿到了「破掉的獎狀碎片」。", 
-          "（這是全校第一名的獎狀，屬於哥哥的榮耀。）",
-          "（邊緣有乾掉的膠水痕跡... 是家豪曾經試圖修復它嗎？）",
-          "（即便他再怎麼努力，父親的眼裡永遠只有哥哥。）"
-        ]
+        dialogue: ["撿到了「破掉的獎狀碎片」。"]
       }
     ]
   },
@@ -207,7 +233,6 @@ export const ROOMS: Record<RoomId, RoomData> = {
       createDoor('to_sound_sr', 50, 360, RoomId.SOUND_ROOM, 600, '音控室'),
       
       createProp('toy_box', 300, 450, 60, 40, '玩具箱', '#1e3a8a'),
-      createProp('drawing', 550, 300, 40, 50, '塗鴉', '#fca5a5'),
 
       {
         id: 'broken_toys', type: 'decoration', x: 400, y: 450, w: 80, h: 40,
@@ -224,12 +249,7 @@ export const ROOMS: Record<RoomId, RoomData> = {
         id: ITEMS.SHARD_TOY, type: 'item', x: 450, y: 460, w: 25, h: 25,
         interactable: true, visibleInNormal: false, visibleInReveal: true,
         color: '#fca5a5', label: '玩具碎片', icon: 'shard',
-        dialogue: [
-          "撿到了「家豪的玩具碎片」。", 
-          "（這是他最喜歡的超人公仔... 頭已經不見了。）",
-          "（「男孩子哭什麼哭！」父親的咆哮聲彷彿還在耳邊。）",
-          "（從那之後，家豪學會了在衣櫃裡無聲地流淚。）"
-        ]
+        dialogue: ["撿到了「家豪的玩具碎片」。"]
       }
     ]
   },
@@ -244,8 +264,8 @@ export const ROOMS: Record<RoomId, RoomData> = {
     entities: [
       createDoor('back_lobby_hl', 700, 360, RoomId.LOBBY, 50, '大廳'),
       
-      createProp('shoes', 150, 480, 30, 20, '男皮鞋', '#1c1917'),
-      createProp('bottle', 450, 470, 15, 30, '空酒瓶', '#15803d'),
+      // Shortcut Vent to 1F Right (Sneak Route)
+      createVent('vent_to_right', 100, 500, RoomId.HALL_RIGHT, 200),
 
       {
         id: 'mirror', type: 'decoration', x: 200, y: 300, w: 60, h: 100,
@@ -262,12 +282,7 @@ export const ROOMS: Record<RoomId, RoomData> = {
         id: ITEMS.BELT_BUCKLE, type: 'item', x: 320, y: 480, w: 25, h: 25,
         interactable: true, visibleInNormal: true, visibleInReveal: true,
         color: '#d4d4d8', label: '皮帶扣', icon: 'shard',
-        dialogue: [
-          "撿到了「皮帶扣環」。", 
-          "（沉甸甸的金屬，冰冷得讓人不寒而慄。）",
-          "（每次聽到這個扣環解開的聲音，家豪就會開始發抖。）",
-          "（為什麼... 為什麼那時候我沒有站出來阻止？）"
-        ]
+        dialogue: ["撿到了「皮帶扣環」。"]
       }
     ]
   },
@@ -282,8 +297,8 @@ export const ROOMS: Record<RoomId, RoomData> = {
     entities: [
       createDoor('back_lobby_hr', 50, 360, RoomId.LOBBY, 1450, '大廳'),
       
-      createProp('bucket', 300, 460, 30, 30, '水桶', '#3b82f6'),
-      createProp('mop', 340, 350, 10, 140, '拖把', '#d4d4d4'),
+      // Shortcut Vent back to Left (Sneak Route)
+      createVent('vent_to_left', 200, 500, RoomId.HALL_LEFT, 150),
 
       {
         id: 'cleaning_supplies', type: 'decoration', x: 500, y: 400, w: 80, h: 80,
@@ -300,12 +315,7 @@ export const ROOMS: Record<RoomId, RoomData> = {
         id: ITEMS.DIARY_PAGE, type: 'item', x: 600, y: 480, w: 25, h: 25,
         interactable: true, visibleInNormal: false, visibleInReveal: true,
         color: '#fef08a', label: '日記頁', icon: 'page',
-        dialogue: [
-          "撿到了「家豪的日記頁」。", 
-          "（字跡歪歪斜斜：『打掃用具櫃很窄，但是很安全。』）",
-          "（『只要躲在這裡，爸爸就找不到我了。哥哥什麼都好，我只會惹爸爸生氣...』）",
-          "（『如果我消失了，大家會不會比較快樂？』）"
-        ]
+        dialogue: ["撿到了「家豪的日記頁」。"]
       }
     ]
   }

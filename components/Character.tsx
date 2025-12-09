@@ -4,15 +4,24 @@ import { Skull, Heart } from 'lucide-react';
 import { PlayerState, BossState } from '../types';
 
 export const PlayerView = ({ player, isFlashlightOn, isMoving }: { player: PlayerState, isFlashlightOn: boolean, isMoving: boolean }) => {
+    
+    const heightMod = player.isCrouching ? 0.6 : 1;
+    const yOffset = player.isCrouching ? player.h * 0.4 : 0;
+
     return (
-        <div className="absolute z-20"
-            style={{ left: player.x, top: player.y, width: player.w, height: player.h }}>
+        <div className="absolute z-20 transition-all duration-200"
+            style={{ left: player.x, top: player.y + yOffset, width: player.w, height: player.h * heightMod }}>
                 <div className={`relative w-full h-full transition-transform duration-200 ${player.facingRight ? '' : 'scale-x-[-1]'}`}>
                     
+                    {/* Attack Visual */}
+                    {player.isAttacking && (
+                        <div className="absolute top-1/2 -right-12 w-12 h-1 bg-white animate-ping z-50"></div>
+                    )}
+
                     {/* Legs Animation */}
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full flex justify-center gap-1">
-                        <div className={`w-3 h-8 bg-black rounded-full origin-top ${isMoving ? 'leg-l' : ''}`}></div>
-                        <div className={`w-3 h-8 bg-black rounded-full origin-top ${isMoving ? 'leg-r' : ''}`}></div>
+                        <div className={`w-3 ${player.isCrouching ? 'h-4' : 'h-8'} bg-black rounded-full origin-top ${isMoving ? 'leg-l' : ''}`}></div>
+                        <div className={`w-3 ${player.isCrouching ? 'h-4' : 'h-8'} bg-black rounded-full origin-top ${isMoving ? 'leg-r' : ''}`}></div>
                     </div>
 
                     {/* Character Body */}
@@ -24,6 +33,8 @@ export const PlayerView = ({ player, isFlashlightOn, isMoving }: { player: Playe
                     {/* Head */}
                     <div className={`absolute -top-4 left-1/2 -translate-x-1/2 w-10 h-10 bg-[#e5e5e5] rounded-full border-2 border-gray-400 shadow-md overflow-hidden z-20 ${isMoving ? 'walking-bounce' : ''}`} style={{ animationDelay: '-0.15s' }}>
                         <div className="w-full h-3 bg-black absolute top-0" />
+                        {/* Eyes */}
+                        {player.stealth > 1 && <div className="absolute top-4 left-2 w-6 h-1 bg-blue-500 opacity-50"></div>}
                     </div>
                     
                     {/* Flashlight Beam */}

@@ -5,7 +5,7 @@ import { BOSS_SPEED } from './data';
 export const updateBossLogic = (
   prevBoss: BossState, 
   player: PlayerState, 
-  isFlashlightOn: boolean, 
+  isHighBeam: boolean, 
   isRevealing: boolean,
   triggerEnding: (ending: GameState) => void
 ): BossState => {
@@ -27,38 +27,58 @@ export const updateBossLogic = (
     const dy = player.y - nextBoss.y;
     const dist = Math.sqrt(dx*dx + dy*dy);
 
-    // Chase Logic
-    if (dist > 50) {
-        nextX += (dx / dist) * BOSS_SPEED;
-        nextY += (dy / dist) * BOSS_SPEED;
+    // --- DETECTION LOGIC (STEALTH) ---
+    // Base detection radius
+    let detectionRadius = 400; 
+    
+    // Stealth modifiers
+    if (player.isCrouching) {
+        detectionRadius = 150 - (player.stealth * 20); // Stealth stats reduce range further
+    }
+    
+    // Flashlight increases detection
+    if (player.flashlightOn) {
+        detectionRadius = 600;
     }
 
-    // Flashlight Impact (Pushback)
-    if (isFlashlightOn) {
+    // Chase Logic
+    if (dist < detectionRadius) {
+        nextX += (dx / dist) * BOSS_SPEED;
+        nextY += (dy / dist) * BOSS_SPEED;
+    } else {
+        // Idle / Patrol (Jitter)
+        nextX += (Math.random() - 0.5) * 2;
+        nextY += (Math.random() - 0.5) * 2;
+    }
+
+    // --- DAMAGE LOGIC ---
+
+    // 1. Flashlight Pushback (High Beam only)
+    if (isHighBeam) {
         const playerFacingBoss = (player.x < nextBoss.x && player.facingRight) || (player.x > nextBoss.x && !player.facingRight);
         const inRange = dist < 300;
         if (playerFacingBoss && inRange) {
              nextX -= (dx / dist) * BOSS_SPEED * 1.5; 
+             // Chance to stun
+             if (dist < 100 && !nextBoss.stunned && Math.random() < 0.02) {
+                nextBoss.stunned = true;
+                nextBoss.stunTimer = 120;
+            }
         }
     }
 
-    // Reveal Damage Mechanic
+    // 2. Reveal Damage (Looking at core)
     let newHealth = nextBoss.health;
     let newStunned = nextBoss.stunned;
     
-    // Player needs to look at boss in reveal mode to damage core
     if (isRevealing) {
          const playerFacingBoss = (player.x < nextBoss.x && player.facingRight) || (player.x > nextBoss.x && !player.facingRight);
          if (playerFacingBoss && dist < 400) {
-             newHealth -= 0.3; // DPS
+             newHealth -= 0.3; // Psychic DPS
          }
     }
-
-    // Flashlight Stuns if very close
-    if (isFlashlightOn && dist < 100 && !nextBoss.stunned && Math.random() < 0.02) {
-        newStunned = true;
-        nextBoss.stunTimer = 120;
-    }
+    
+    // 3. Physical Damage (Handled in App.tsx handleAttack, but checking death here)
 
     if (newHealth <= 0) {
         triggerEnding(GameState.ENDING_A);

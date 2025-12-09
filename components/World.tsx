@@ -42,21 +42,23 @@ export const WorldRenderer = ({
     const playerScreenY = player.y + player.h / 3; 
 
     // Light Logic:
-    // Standard: Always on, medium visibility radius, soft edges.
-    // High Beam: Larger radius, clearer center, pushes back darkness significantly.
-    // Empty Battery (if implementing logic later): Small radius.
-    
-    // Default is "Standard Flashlight" (User Requirement 1)
-    let maskSize = '300px'; 
-    let maskColor = 'transparent 5%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.98) 70%';
-    
-    if (isHighBeam && player.battery > 0) {
-        // High Power Mode (Spacebar)
-        maskSize = '600px';
-        maskColor = 'transparent 10%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.98) 80%';
-    } else if (player.battery <= 0 && isHighBeam) {
-        // Trying to use high beam but empty
-        maskSize = '250px'; // Flicker/Weak
+    let maskSize = '100px'; 
+    let maskColor = 'transparent 5%, rgba(0,0,0,0.95) 30%, rgba(0,0,0,1) 60%'; // Very Dark (Off)
+
+    if (player.flashlightOn && player.battery > 0) {
+        if (isHighBeam) {
+             // High Beam (Space)
+             maskSize = '600px';
+             maskColor = 'transparent 10%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.98) 80%';
+        } else {
+             // Standard Beam (F)
+             maskSize = '300px';
+             maskColor = 'transparent 5%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.98) 70%';
+        }
+    } else {
+        // Off or Empty Battery
+        maskSize = '120px'; // Barely visible personal space
+        maskColor = 'transparent 0%, rgba(0,0,0,0.8) 40%, rgba(0,0,0,1) 70%';
     }
 
     return (
@@ -81,8 +83,7 @@ export const WorldRenderer = ({
                     ))}
 
                     <BossView boss={boss} isRevealing={isRevealing} />
-                    {/* Pass isHighBeam as isFlashlightOn to player for beam visual */}
-                    <PlayerView player={player} isFlashlightOn={isHighBeam && player.battery > 0} isMoving={isMoving} />
+                    <PlayerView player={player} isFlashlightOn={player.flashlightOn && player.battery > 0} isMoving={isMoving} />
                     <ThoughtBubble text={thought} x={player.x} y={player.y} />
                 </div>
             </div>

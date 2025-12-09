@@ -25,7 +25,7 @@ export interface Rect {
   h: number;
 }
 
-export type EntityType = 'npc' | 'item' | 'door' | 'decoration' | 'boss_core' | 'trap' | 'save_point';
+export type EntityType = 'npc' | 'item' | 'door' | 'decoration' | 'boss_core' | 'trap' | 'save_point' | 'breakable' | 'vent';
 
 export interface Entity {
   id: string;
@@ -42,7 +42,8 @@ export interface Entity {
   
   // Logic
   interactable: boolean;
-  reqItem?: string; 
+  reqItem?: string;
+  hp?: number; // For breakable objects
   
   // Visibility Mechanics
   visibleInNormal: boolean;
@@ -52,7 +53,7 @@ export interface Entity {
   dialogue?: string[];
   revealText?: string; 
   
-  // Door Logic
+  // Door/Vent Logic
   targetRoom?: RoomId;
   targetX?: number;
 }
@@ -78,9 +79,17 @@ export interface PlayerState {
   sanity: number;
   
   // New Mechanics
-  flashlightOn: boolean;
+  flashlightOn: boolean; // Main toggle (F)
   battery: number;
   stamina: number;
+  
+  // RPG Stats
+  strength: number; // For breaking things and combat
+  stealth: number;  // For avoiding detection
+  
+  // Actions
+  isCrouching: boolean; // Toggle (C)
+  isAttacking: boolean; // Trigger (K)
 }
 
 export interface BossState {

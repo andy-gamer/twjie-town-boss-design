@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Book, Trophy, Puzzle, Circle, FileText, ChevronDown, User, MapPin, AlertTriangle, Battery, Zap } from 'lucide-react';
-import { BossState } from '../types';
+import { Book, Trophy, Puzzle, Circle, FileText, ChevronDown, User, MapPin, AlertTriangle, Battery, Zap, Hammer, EyeOff } from 'lucide-react';
+import { BossState, PlayerState } from '../types';
 import { MAX_BATTERY, MAX_STAMINA } from '../data';
 
 // --- ICONS & INVENTORY ---
@@ -11,6 +11,8 @@ const getItemIcon = (name: string) => {
     if (name.includes('玩具')) return <Puzzle size={20} className="text-blue-400" />;
     if (name.includes('皮帶')) return <Circle size={20} className="text-gray-400" />;
     if (name.includes('日記')) return <FileText size={20} className="text-yellow-100" />;
+    if (name.includes('啞鈴')) return <Hammer size={20} className="text-red-400" />;
+    if (name.includes('鞋')) return <EyeOff size={20} className="text-blue-300" />;
     return <span className="font-serif font-bold text-xl">{name.charAt(0)}</span>;
 };
 
@@ -18,7 +20,7 @@ const InventoryDisplay = ({ inventory }: { inventory: string[] }) => {
     return (
         <div className="absolute bottom-6 left-6 z-50 flex flex-col gap-2">
              <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold ml-1">Items</div>
-             <div className="flex gap-3">
+             <div className="flex gap-3 flex-wrap max-w-[400px]">
                 {inventory.length === 0 && (
                     <div className="w-12 h-12 border border-dashed border-white/20 rounded flex items-center justify-center bg-black/40">
                         <span className="text-white/20 text-xs">Empty</span>
@@ -46,7 +48,8 @@ export const HUD = ({
     boss, 
     objective,
     battery,
-    stamina
+    stamina,
+    player
 }: { 
     roomName: string, 
     isRevealing: boolean, 
@@ -55,7 +58,8 @@ export const HUD = ({
     boss: BossState, 
     objective: string,
     battery: number,
-    stamina: number
+    stamina: number,
+    player: PlayerState
 }) => {
     return (
         <>
@@ -77,6 +81,7 @@ export const HUD = ({
                     <div className="w-32 h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-600">
                         <div className="h-full bg-yellow-400 transition-all duration-200" style={{ width: `${(battery / MAX_BATTERY) * 100}%` }} />
                     </div>
+                    <span className="text-[10px] text-gray-500 font-mono">{Math.floor(battery)}%</span>
                 </div>
                 {/* Stamina */}
                 <div className="flex items-center gap-2">
@@ -84,6 +89,12 @@ export const HUD = ({
                     <div className="w-32 h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-600">
                         <div className="h-full bg-blue-500 transition-all duration-100" style={{ width: `${(stamina / MAX_STAMINA) * 100}%` }} />
                     </div>
+                </div>
+
+                {/* RPG Stats */}
+                <div className="mt-2 flex gap-4 text-xs font-serif text-gray-400">
+                    <div className="flex items-center gap-1"><Hammer size={12}/> STR: <span className="text-red-400">{player.strength}</span></div>
+                    <div className="flex items-center gap-1"><EyeOff size={12}/> STL: <span className="text-blue-400">{player.stealth}</span></div>
                 </div>
             </div>
 
@@ -106,17 +117,25 @@ export const HUD = ({
             
             {/* Controls Help */}
             <div className="absolute top-6 right-6 flex flex-col items-end gap-2 z-50 select-none">
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isRevealing ? "bg-red-950/80 border-red-500 text-red-100 shadow-[0_0_15px_red]" : "bg-black/40 border-white/10 text-white/40"}`}>
-                    <span className="text-[10px] font-bold">Q</span>
-                    <span className="text-xs">Toggle Reveal</span>
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${player.flashlightOn ? "bg-yellow-950/80 border-yellow-500 text-yellow-100" : "bg-black/40 border-white/10 text-white/40"}`}>
+                    <span className="text-[10px] font-bold">F</span>
+                    <span className="text-xs">Flashlight</span>
                 </div>
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isHighBeam ? "bg-yellow-950/80 border-yellow-500 text-yellow-100 shadow-[0_0_15px_yellow]" : "bg-black/40 border-white/10 text-white/40"}`}>
+                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isHighBeam ? "bg-orange-900/80 border-orange-500 text-orange-100" : "bg-black/40 border-white/10 text-white/40"}`}>
                     <span className="text-[10px] font-bold">SPACE</span>
                     <span className="text-xs">High Beam (Hold)</span>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border bg-black/40 border-white/10 text-white/40">
-                    <span className="text-[10px] font-bold">SHIFT</span>
-                    <span className="text-xs">Sprint</span>
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${player.isCrouching ? "bg-blue-900/80 border-blue-500 text-blue-100" : "bg-black/40 border-white/10 text-white/40"}`}>
+                    <span className="text-[10px] font-bold">C</span>
+                    <span className="text-xs">Crouch</span>
+                </div>
+                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${player.isAttacking ? "bg-red-900/80 border-red-500 text-red-100" : "bg-black/40 border-white/10 text-white/40"}`}>
+                    <span className="text-[10px] font-bold">K</span>
+                    <span className="text-xs">Attack</span>
+                </div>
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isRevealing ? "bg-purple-900/80 border-purple-500 text-purple-100" : "bg-black/40 border-white/10 text-white/40"}`}>
+                    <span className="text-[10px] font-bold">Q</span>
+                    <span className="text-xs">Reveal</span>
                 </div>
             </div>
 
