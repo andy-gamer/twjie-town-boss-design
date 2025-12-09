@@ -1,8 +1,7 @@
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Skull, Heart } from 'lucide-react';
 import { GameState, RoomId, PlayerState, BossState } from './types';
-import { ROOMS, ITEMS, PLAYER_SPEED, SPRINT_SPEED, SCREEN_WIDTH, MAX_BATTERY, MAX_STAMINA, BATTERY_DRAIN_RATE, BATTERY_RECHARGE_RATE, STAMINA_DRAIN_RATE, STAMINA_RECHARGE_RATE } from './data';
+import { ROOMS, ITEMS, PLAYER_SPEED, SPRINT_SPEED, SCREEN_WIDTH, SCREEN_HEIGHT, MAX_BATTERY, MAX_STAMINA, BATTERY_DRAIN_RATE, BATTERY_RECHARGE_RATE, STAMINA_DRAIN_RATE, STAMINA_RECHARGE_RATE } from './data';
 import { useInput, useGameLoop } from './hooks';
 import { WorldRenderer, HUD, DialogueBox } from './components';
 import { updateBossLogic } from './bossAI';
@@ -17,7 +16,7 @@ export default function App() {
     inventory: [],
     health: 100,
     sanity: 100,
-    flashlightOn: false,
+    flashlightOn: true, // Modified: Flashlight on by default
     battery: MAX_BATTERY,
     stamina: MAX_STAMINA
   });
@@ -295,7 +294,8 @@ export default function App() {
       
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [player.inventory, player.battery, player.room, gameState, dialogue, boss]);
+      // Fixed: Added dialogueIndex to dependencies to prevent stale closures
+  }, [player.inventory, player.battery, player.room, gameState, dialogue, boss, dialogueIndex]);
 
 
   const handleInteraction = () => {
@@ -407,7 +407,7 @@ export default function App() {
               <p className="text-xl text-gray-400 font-serif tracking-widest relative z-10">第一章：大禮堂</p>
                <button 
                 onClick={() => setIntroStep(1)} 
-                className="px-10 py-4 border border-red-800 hover:bg-red-900/20 hover:border-red-500 transition-all text-red-500 mt-8 relative z-10 tracking-[0.2em] cursor-pointer"
+                className="px-10 py-4 border border-red-800 hover:bg-red900/20 hover:border-red-500 transition-all text-red-500 mt-8 relative z-10 tracking-[0.2em] cursor-pointer"
               >
                   開始旅程 START
               </button>
@@ -456,40 +456,43 @@ export default function App() {
   const playerScreenY = player.y;
 
   return (
-    <div className="flex items-center justify-center w-screen h-screen bg-[#050505] select-none relative overflow-hidden">
-        <WorldRenderer 
-            room={ROOMS[player.room]}
-            player={player}
-            boss={boss}
-            isRevealing={isRevealing}
-            isFlashlightOn={player.flashlightOn}
-            isCorrupted={gameState === GameState.CORRUPTED || gameState === GameState.BOSS_FIGHT}
-            isDistorting={isDistorting}
-            thought={thought}
-            isMoving={isMoving}
-            cameraX={finalCameraX}
-            isDoorLocked={isDoorLocked}
-        />
-
-        {introStep >= 3 && (
-            <HUD 
-                roomName={ROOMS[player.room].name}
+    <div className="flex items-center justify-center w-screen h-screen bg-[#050505] select-none overflow-hidden">
+        {/* Game Container: Wraps everything in relative coords matching screen size */}
+        <div className="relative" style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
+            <WorldRenderer 
+                room={ROOMS[player.room]}
+                player={player}
+                boss={boss}
                 isRevealing={isRevealing}
                 isFlashlightOn={player.flashlightOn}
-                inventory={player.inventory}
-                boss={boss}
-                objective={getObjective()}
-                battery={player.battery}
-                stamina={player.stamina}
+                isCorrupted={gameState === GameState.CORRUPTED || gameState === GameState.BOSS_FIGHT}
+                isDistorting={isDistorting}
+                thought={thought}
+                isMoving={isMoving}
+                cameraX={finalCameraX}
+                isDoorLocked={isDoorLocked}
             />
-        )}
 
-        {dialogue && (
-            <DialogueBox 
-                text={dialogue[dialogueIndex]} 
-                position={{ x: playerScreenX, y: playerScreenY }}
-            />
-        )}
+            {introStep >= 3 && (
+                <HUD 
+                    roomName={ROOMS[player.room].name}
+                    isRevealing={isRevealing}
+                    isFlashlightOn={player.flashlightOn}
+                    inventory={player.inventory}
+                    boss={boss}
+                    objective={getObjective()}
+                    battery={player.battery}
+                    stamina={player.stamina}
+                />
+            )}
+
+            {dialogue && (
+                <DialogueBox 
+                    text={dialogue[dialogueIndex]} 
+                    position={{ x: playerScreenX, y: playerScreenY }}
+                />
+            )}
+        </div>
     </div>
   );
 }

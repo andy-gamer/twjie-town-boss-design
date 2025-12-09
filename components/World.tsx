@@ -43,11 +43,11 @@ export const WorldRenderer = ({
 
     // Proper CSS syntax for radial-gradient size/shape
     // Flashlight ON: Large radius, soft falloff
-    // Flashlight OFF: Small radius (150px), hard darkness
+    // Flashlight OFF: Small radius (150px), hard darkness but slightly transparent outer
     const maskSize = isFlashlightOn ? '600px' : '150px'; 
     const maskColor = isFlashlightOn 
         ? 'transparent 5%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.95) 70%' 
-        : 'transparent 0%, black 80%';
+        : 'transparent 10%, rgba(0,0,0,0.9) 85%';
 
     return (
         <div 

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Book, Trophy, Puzzle, Circle, FileText, ChevronDown, User, MapPin, AlertTriangle, Battery, Zap } from 'lucide-react';
 import { BossState } from '../types';
@@ -16,7 +15,7 @@ const getItemIcon = (name: string) => {
 
 const InventoryDisplay = ({ inventory }: { inventory: string[] }) => {
     return (
-        <div className="fixed bottom-6 left-6 z-50 flex flex-col gap-2">
+        <div className="absolute bottom-6 left-6 z-50 flex flex-col gap-2">
              <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold ml-1">Items</div>
              <div className="flex gap-3">
                 {inventory.length === 0 && (
@@ -60,7 +59,7 @@ export const HUD = ({
     return (
         <>
             {/* Objective Banner */}
-            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center w-full pointer-events-none">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center w-full pointer-events-none">
                 <div className="bg-gradient-to-r from-transparent via-black/80 to-transparent px-12 py-3 border-y border-red-900/30 text-red-100 font-serif tracking-[0.15em] shadow-[0_5px_20px_rgba(0,0,0,0.5)] text-center transform scale-105">
                     <div className="text-[10px] text-red-500 uppercase tracking-widest font-bold mb-1 flex items-center justify-center gap-2">
                         <AlertTriangle size={10} /> Current Objective <AlertTriangle size={10} />
@@ -70,7 +69,7 @@ export const HUD = ({
             </div>
 
             {/* Stats Bars (Battery & Stamina) */}
-            <div className="fixed top-24 left-6 z-50 flex flex-col gap-2 pointer-events-none">
+            <div className="absolute top-24 left-6 z-50 flex flex-col gap-2 pointer-events-none">
                 {/* Battery */}
                 <div className="flex items-center gap-2">
                     <Battery size={16} className={`${battery < 20 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`} />
@@ -89,7 +88,7 @@ export const HUD = ({
 
             {/* Boss Health Bar */}
             {boss.active && boss.health > 0 && (
-                <div className="fixed top-28 left-1/2 -translate-x-1/2 w-[400px] h-4 bg-gray-900 border border-purple-900 rounded-full overflow-hidden z-50 shadow-2xl">
+                <div className="absolute top-28 left-1/2 -translate-x-1/2 w-[400px] h-4 bg-gray-900 border border-purple-900 rounded-full overflow-hidden z-50 shadow-2xl">
                     <div className="h-full bg-gradient-to-r from-purple-800 to-purple-500 transition-all duration-300 relative" style={{ width: `${boss.health}%` }}>
                         <div className="absolute inset-0 bg-white/20 animate-pulse" />
                     </div>
@@ -97,7 +96,7 @@ export const HUD = ({
             )}
 
             {/* Room Name */}
-            <div className="fixed top-6 left-6 z-50 select-none">
+            <div className="absolute top-6 left-6 z-50 select-none">
                 <div className="text-white/40 text-xs uppercase tracking-widest mb-1">Location</div>
                 <div className="text-white font-serif text-2xl flex items-center gap-3 drop-shadow-md">
                     <MapPin size={20} className="text-red-500/80" /> {roomName}
@@ -105,7 +104,7 @@ export const HUD = ({
             </div>
             
             {/* Controls Help */}
-            <div className="fixed top-6 right-6 flex flex-col items-end gap-2 z-50 select-none">
+            <div className="absolute top-6 right-6 flex flex-col items-end gap-2 z-50 select-none">
                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isRevealing ? "bg-red-950/80 border-red-500 text-red-100 shadow-[0_0_15px_red]" : "bg-black/40 border-white/10 text-white/40"}`}>
                     <span className="text-[10px] font-bold">Q</span>
                     <span className="text-xs">Reveal</span>
@@ -127,7 +126,7 @@ export const HUD = ({
 
 // --- DIALOGUE ---
 export const DialogueBox = ({ text, position }: { text: string, position: {x: number, y: number} }) => (
-    <div className="fixed z-[100] transition-all duration-75 ease-out pointer-events-none"
+    <div className="absolute z-[100] transition-all duration-75 ease-out pointer-events-none"
          style={{ left: position.x, top: position.y - 40, transform: 'translateX(-50%) translateY(-100%)' }}>
          
         <div className="relative w-[300px] bg-black/90 backdrop-blur-md border border-gray-500 p-5 rounded-xl shadow-2xl flex flex-col gap-2 animation-pop-in pointer-events-auto">
