@@ -73,15 +73,24 @@ export const WorldRenderer = ({
                 >
                     <div className="absolute bottom-0 left-0 w-full h-[80px] floor-texture z-10" />
 
-                    {room.entities.map(ent => (
-                        <EntityView 
-                            key={ent.id} 
-                            entity={ent} 
-                            isRevealing={isRevealing} 
-                            isInventoryItem={player.inventory.includes(ent.id)} 
-                            isLocked={ent.type === 'door' && isDoorLocked(ent.id)}
-                        />
-                    ))}
+                    {room.entities.map(ent => {
+                         // Calculate distance for 'near' hint
+                         const dx = (ent.x + ent.w/2) - (player.x + player.w/2);
+                         const dy = (ent.y + ent.h/2) - (player.y + player.h/2);
+                         const dist = Math.sqrt(dx*dx + dy*dy);
+                         const isNear = dist < 100;
+
+                        return (
+                            <EntityView 
+                                key={ent.id} 
+                                entity={ent} 
+                                isRevealing={isRevealing} 
+                                isInventoryItem={player.inventory.includes(ent.id)} 
+                                isLocked={ent.type === 'door' && isDoorLocked(ent.id)}
+                                isNear={isNear}
+                            />
+                        );
+                    })}
 
                     <BossView boss={boss} isRevealing={isRevealing} />
                     <PlayerView player={player} isFlashlightOn={player.flashlightOn && player.battery > 0} isMoving={isMoving} />

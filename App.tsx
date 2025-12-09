@@ -7,6 +7,72 @@ import { useInput, useGameLoop } from './hooks';
 import { WorldRenderer, HUD, DialogueBox } from './components';
 import { updateBossLogic } from './bossAI';
 
+// --- AUDIO UTILS ---
+const playSound = (type: 'door_open' | 'door_locked' | 'item_pickup' | 'switch') => {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    
+    // Create context only when needed or keep a global one (safest to create new for simple effects to avoid state issues in this scope)
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+
+    if (type === 'door_locked') {
+        // Low pitched double 'thud'
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(80, now);
+        osc.frequency.exponentialRampToValueAtTime(10, now + 0.1);
+        
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        
+        osc.start(now);
+        osc.stop(now + 0.1);
+
+        // Second thud
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        
+        osc2.type = 'square';
+        osc2.frequency.setValueAtTime(80, now + 0.15);
+        osc2.frequency.exponentialRampToValueAtTime(10, now + 0.25);
+        gain2.gain.setValueAtTime(0.1, now + 0.15);
+        gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+        
+        osc2.start(now + 0.15);
+        osc2.stop(now + 0.25);
+    } else if (type === 'door_open') {
+        // Creaky sweep
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.linearRampToValueAtTime(300, now + 0.4);
+        
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.linearRampToValueAtTime(0.0, now + 0.4);
+        
+        osc.start(now);
+        osc.stop(now + 0.4);
+    } else if (type === 'item_pickup') {
+        // High sparkle
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+        
+        gain.gain.setValueAtTime(0.05, now);
+        gain.gain.linearRampToValueAtTime(0.0, now + 0.2);
+        
+        osc.start(now);
+        osc.stop(now + 0.2);
+    }
+};
+
 export default function App() {
   // --- STATE ---
   const [gameState, setGameState] = useState<GameState>(GameState.INTRO);
@@ -335,6 +401,7 @@ export default function App() {
     // 1. Stairs (Lobby Stage)
     if (nearby.type === 'stairs' && nearby.targetY) {
         setPlayer(p => ({ ...p, y: nearby.targetY! }));
+        playSound('door_open');
         return;
     }
 
@@ -342,13 +409,15 @@ export default function App() {
     if (nearby.type === 'door' && nearby.targetRoom) {
         // Locked Logic
         if (isDoorLocked(nearby.id)) {
-             setDialogue([
+            playSound('door_locked');
+            setDialogue([
                 "這扇門被黑色的藤蔓封鎖了。",
                 "（必須解開心結才能通過。）"
             ]);
             return;
         }
 
+        playSound('door_open');
         let targetX = nearby.targetX || 100;
         setPlayer(p => ({...p, room: nearby.targetRoom!, x: targetX}));
         
@@ -359,6 +428,7 @@ export default function App() {
     // 3. Items 
     else if (nearby.type === 'item') {
         if (!player.inventory.includes(nearby.id)) {
+            playSound('item_pickup');
             setPlayer(p => {
                 let stats = { ...p, inventory: [...p.inventory, nearby.id] };
                 return stats;

@@ -4,19 +4,20 @@ import { DoorOpen, Ghost, Lock, User, Sparkles, AlertOctagon, ArrowUpCircle, Arr
 import { Entity } from '../types';
 
 // Helper for Interaction Hint
-const InteractHint = ({label}: {label?: string}) => (
-    <div className="absolute -top-12 bg-white/90 text-black text-[10px] px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity font-bold pointer-events-none z-40 whitespace-nowrap flex items-center gap-1 animate-bounce">
+const InteractHint = ({label, visible}: {label?: string, visible: boolean}) => (
+    <div className={`absolute -top-12 bg-white/90 text-black text-[10px] px-2 py-1 rounded shadow-lg transition-opacity duration-300 font-bold pointer-events-none z-40 whitespace-nowrap flex items-center gap-1 animate-bounce ${visible ? 'opacity-100' : 'opacity-0'}`}>
         <span className="w-4 h-4 bg-black text-white rounded flex items-center justify-center text-[8px]">E</span>
         {label || "互動"}
     </div>
 );
 
-export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, isLocked }: { entity: Entity, isRevealing: boolean, isInventoryItem: boolean, isLocked?: boolean }) => {
+export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, isLocked, isNear }: { entity: Entity, isRevealing: boolean, isInventoryItem: boolean, isLocked?: boolean, isNear?: boolean }) => {
     const { id, type, x, y, w, h, label, color, icon, revealText, interactable, visibleInNormal, visibleInReveal } = entity;
     
     // Visibility Check
     const isVisible = (visibleInNormal && !isRevealing) || (visibleInReveal && isRevealing) || (visibleInNormal && visibleInReveal);
-    
+    const isRevealOnly = !visibleInNormal && visibleInReveal;
+
     if (isInventoryItem) return null; // Already picked up
     if (!isVisible) return null;
 
@@ -29,7 +30,7 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
                  <div className="w-full h-full bg-gradient-to-t from-black/50 to-transparent border-x-2 border-white/10 flex items-center justify-center relative">
                      {isUp ? <ArrowUpCircle className="text-white/30 animate-bounce" /> : <ArrowDownCircle className="text-white/30 animate-bounce" />}
                  </div>
-                 {interactable && <InteractHint label={label} />}
+                 {interactable && <InteractHint label={label} visible={!!isNear} />}
             </div>
          );
     }
@@ -37,9 +38,9 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
     // --- DOORS ---
     if (type === 'door') {
         return (
-            <div className="absolute flex flex-col items-center justify-end group transition-transform hover:scale-105"
+            <div className={`absolute flex flex-col items-center justify-end group transition-transform duration-500 ${isNear && !isLocked ? 'scale-105' : ''}`}
                  style={{ left: x, top: y, width: w, height: h }}>
-                <div className="w-full h-full bg-[#1a1a1a] border-x-4 border-t-4 border-[#4a4a4a] relative shadow-2xl flex items-end justify-center overflow-hidden">
+                <div className={`w-full h-full bg-[#1a1a1a] border-x-4 border-t-4 relative shadow-2xl flex items-end justify-center overflow-hidden ${isLocked ? 'border-red-950' : 'border-[#4a4a4a]'}`}>
                     <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-80" />
                     
                     {isLocked ? (
@@ -52,8 +53,8 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
                                     <path d="M20 200 Q50 100 80 200" />
                                     <path d="M0 50 Q50 150 100 50" />
                                 </svg>
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                                    <AlertOctagon className="text-red-900 w-12 h-12 opacity-80 animate-pulse" />
+                                <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${isNear ? 'animate-bounce' : ''}`}>
+                                    <AlertOctagon className="text-red-900 w-12 h-12 opacity-80" />
                                 </div>
                             </div>
                             <div className="absolute top-2 w-full text-center text-[10px] text-red-900 font-bold bg-black/80 py-1 z-30 tracking-widest">LOCKED</div>
@@ -65,7 +66,7 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
                         </>
                     )}
                 </div>
-                {interactable && !isLocked && <InteractHint />}
+                {interactable && !isLocked && <InteractHint visible={!!isNear} />}
             </div>
         );
     }
@@ -75,10 +76,14 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
         let itemColor = 'text-yellow-200';
         let glowColor = 'bg-yellow-400';
         
+        // Ethereal style for reveal-only items
+        const revealStyle = isRevealOnly ? 'opacity-80 animate-pulse drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] filter brightness-150' : '';
+        const wrapperStyle = isRevealOnly ? 'animate-[bounce_3s_infinite]' : '';
+
         return (
-            <div className="absolute flex flex-col items-center justify-end group"
+            <div className={`absolute flex flex-col items-center justify-end group ${wrapperStyle}`}
                  style={{ left: x, top: y, width: w, height: h }}>
-                <div className="relative animate-bounce">
+                <div className={`relative animate-bounce ${revealStyle}`}>
                     <div className={`absolute inset-0 ${glowColor} blur-md opacity-30 animate-pulse`} />
                     <Sparkles className={`${itemColor} w-8 h-8 drop-shadow-[0_0_5px_rgba(255,215,0,0.8)]`} />
                 </div>
@@ -87,7 +92,7 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
                         {label}
                     </div>
                 )}
-                {interactable && <InteractHint label="拾取" />}
+                {interactable && <InteractHint label="拾取" visible={!!isNear} />}
             </div>
         );
     }
@@ -100,7 +105,7 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
                      <div className="text-purple-300 text-xs tracking-[0.2em] uppercase font-bold opacity-70 mt-auto mb-2">{label}</div>
                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_50%,rgba(88,28,135,0.5))] pointer-events-none" />
                  </div>
-                 {interactable && <InteractHint />}
+                 {interactable && <InteractHint visible={!!isNear} />}
              </div>
          );
     }
@@ -132,7 +137,7 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
                         <Lock size={20} className="text-purple-300 drop-shadow-[0_0_10px_purple]" />
                      </div>
                 </div>
-                {interactable && <InteractHint />}
+                {interactable && <InteractHint visible={!!isNear} />}
              </div>
         );
     }
@@ -140,8 +145,11 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
     // --- NPCS ---
     if (type === 'npc') {
         const isIntroShadow = id === 'shadow_boy_intro';
+        // Apply ethereal style to reveal-only NPCs as well
+        const npcStyle = isRevealOnly ? 'opacity-80 blur-[0.5px] contrast-125 saturate-50' : '';
+        
         return (
-            <div className={`absolute flex flex-col items-center justify-end transition-opacity duration-1000 ${isIntroShadow ? 'transition-all duration-700' : ''}`}
+            <div className={`absolute flex flex-col items-center justify-end transition-opacity duration-1000 ${isIntroShadow ? 'transition-all duration-700' : ''} ${npcStyle}`}
                  style={{ left: x, top: y, width: w, height: h }}>
                  
                 <div className={`relative w-full h-full flex items-center justify-center ${isRevealing ? 'animate-pulse' : ''}`}>
@@ -151,7 +159,7 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
                     {icon === 'violence' && <div className="text-red-900 font-black text-6xl opacity-50 font-serif">/</div>}
                     {icon === 'hiding' && <div className="text-green-900 font-black text-lg opacity-50 font-serif">( )</div>}
                 </div>
-                 {interactable && <InteractHint />}
+                 {interactable && <InteractHint visible={!!isNear} />}
             </div>
         );
     }
