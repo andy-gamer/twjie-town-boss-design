@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
   <head>
@@ -139,21 +140,21 @@
       .leg-r { animation: walk-r 0.6s infinite ease-in-out; }
 
       @keyframes walk-l {
-        0%, 100% { transform: rotate(15deg); }
-        50% { transform: rotate(-15deg); }
+        0%, 100% { transform: rotate(10deg); }
+        50% { transform: rotate(-10deg); }
       }
       @keyframes walk-r {
-        0%, 100% { transform: rotate(-15deg); }
-        50% { transform: rotate(15deg); }
+        0%, 100% { transform: rotate(-10deg); }
+        50% { transform: rotate(10deg); }
       }
       
       .walking-bounce {
-         animation: walk-bounce 0.3s infinite ease-in-out alternate;
+         animation: walk-bounce 0.4s infinite ease-in-out alternate;
       }
       
       @keyframes walk-bounce {
         from { transform: translateY(0); }
-        to { transform: translateY(-2px); }
+        to { transform: translateY(-1px); }
       }
 
     </style>

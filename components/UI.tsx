@@ -11,19 +11,17 @@ const getItemIcon = (name: string) => {
     if (name.includes('玩具')) return <Puzzle size={20} className="text-blue-400" />;
     if (name.includes('皮帶')) return <Circle size={20} className="text-gray-400" />;
     if (name.includes('日記')) return <FileText size={20} className="text-yellow-100" />;
-    if (name.includes('啞鈴')) return <Hammer size={20} className="text-red-400" />;
-    if (name.includes('鞋')) return <EyeOff size={20} className="text-blue-300" />;
     return <span className="font-serif font-bold text-xl">{name.charAt(0)}</span>;
 };
 
 const InventoryDisplay = ({ inventory }: { inventory: string[] }) => {
     return (
         <div className="absolute bottom-6 left-6 z-50 flex flex-col gap-2">
-             <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold ml-1">Items</div>
+             <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold ml-1">物品欄</div>
              <div className="flex gap-3 flex-wrap max-w-[400px]">
                 {inventory.length === 0 && (
                     <div className="w-12 h-12 border border-dashed border-white/20 rounded flex items-center justify-center bg-black/40">
-                        <span className="text-white/20 text-xs">Empty</span>
+                        <span className="text-white/20 text-xs">空</span>
                     </div>
                 )}
                 {inventory.map((item, i) => (
@@ -67,7 +65,7 @@ export const HUD = ({
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center w-full pointer-events-none">
                 <div className="bg-gradient-to-r from-transparent via-black/80 to-transparent px-12 py-3 border-y border-red-900/30 text-red-100 font-serif tracking-[0.15em] shadow-[0_5px_20px_rgba(0,0,0,0.5)] text-center transform scale-105">
                     <div className="text-[10px] text-red-500 uppercase tracking-widest font-bold mb-1 flex items-center justify-center gap-2">
-                        <AlertTriangle size={10} /> Current Objective <AlertTriangle size={10} />
+                        <AlertTriangle size={10} /> 當前目標 <AlertTriangle size={10} />
                     </div>
                     <span className="drop-shadow-[0_0_5px_rgba(255,0,0,0.5)] text-lg">{objective}</span>
                 </div>
@@ -90,12 +88,6 @@ export const HUD = ({
                         <div className="h-full bg-blue-500 transition-all duration-100" style={{ width: `${(stamina / MAX_STAMINA) * 100}%` }} />
                     </div>
                 </div>
-
-                {/* RPG Stats */}
-                <div className="mt-2 flex gap-4 text-xs font-serif text-gray-400">
-                    <div className="flex items-center gap-1"><Hammer size={12}/> STR: <span className="text-red-400">{player.strength}</span></div>
-                    <div className="flex items-center gap-1"><EyeOff size={12}/> STL: <span className="text-blue-400">{player.stealth}</span></div>
-                </div>
             </div>
 
             {/* Boss Health Bar */}
@@ -104,12 +96,13 @@ export const HUD = ({
                     <div className="h-full bg-gradient-to-r from-purple-800 to-purple-500 transition-all duration-300 relative" style={{ width: `${boss.health}%` }}>
                         <div className="absolute inset-0 bg-white/20 animate-pulse" />
                     </div>
+                    <div className="absolute top-5 left-0 w-full text-center text-xs text-purple-300 tracking-[0.2em]">弱點：強力光束 (Space)</div>
                 </div>
             )}
 
             {/* Room Name */}
             <div className="absolute top-6 left-6 z-50 select-none">
-                <div className="text-white/40 text-xs uppercase tracking-widest mb-1">Location</div>
+                <div className="text-white/40 text-xs uppercase tracking-widest mb-1">位置</div>
                 <div className="text-white font-serif text-2xl flex items-center gap-3 drop-shadow-md">
                     <MapPin size={20} className="text-red-500/80" /> {roomName}
                 </div>
@@ -119,23 +112,19 @@ export const HUD = ({
             <div className="absolute top-6 right-6 flex flex-col items-end gap-2 z-50 select-none">
                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${player.flashlightOn ? "bg-yellow-950/80 border-yellow-500 text-yellow-100" : "bg-black/40 border-white/10 text-white/40"}`}>
                     <span className="text-[10px] font-bold">F</span>
-                    <span className="text-xs">Flashlight</span>
+                    <span className="text-xs">手電筒</span>
                 </div>
                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isHighBeam ? "bg-orange-900/80 border-orange-500 text-orange-100" : "bg-black/40 border-white/10 text-white/40"}`}>
                     <span className="text-[10px] font-bold">SPACE</span>
-                    <span className="text-xs">High Beam (Hold)</span>
-                </div>
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${player.isCrouching ? "bg-blue-900/80 border-blue-500 text-blue-100" : "bg-black/40 border-white/10 text-white/40"}`}>
-                    <span className="text-[10px] font-bold">C</span>
-                    <span className="text-xs">Crouch</span>
-                </div>
-                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${player.isAttacking ? "bg-red-900/80 border-red-500 text-red-100" : "bg-black/40 border-white/10 text-white/40"}`}>
-                    <span className="text-[10px] font-bold">K</span>
-                    <span className="text-xs">Attack</span>
+                    <span className="text-xs">強力光束 (長按)</span>
                 </div>
                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isRevealing ? "bg-purple-900/80 border-purple-500 text-purple-100" : "bg-black/40 border-white/10 text-white/40"}`}>
                     <span className="text-[10px] font-bold">Q</span>
-                    <span className="text-xs">Reveal</span>
+                    <span className="text-xs">使用看取</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border bg-black/40 border-white/10 text-white/40">
+                    <span className="text-[10px] font-bold">ENTER</span>
+                    <span className="text-xs">進入</span>
                 </div>
             </div>
 
@@ -160,6 +149,7 @@ export const DialogueBox = ({ text, position }: { text: string, position: {x: nu
             </p>
             <div className="self-end flex items-center gap-1 opacity-70">
                  <div className="w-5 h-5 bg-gray-700 rounded text-white text-[10px] flex items-center justify-center">E</div>
+                 <div className="w-10 h-5 bg-gray-700 rounded text-white text-[10px] flex items-center justify-center">Enter</div>
                  <ChevronDown className="text-gray-400 animate-bounce" size={14} />
             </div>
             <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-black/90 drop-shadow-sm"></div>

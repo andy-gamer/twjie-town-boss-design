@@ -2,24 +2,22 @@
 import { RoomId, RoomData, Entity } from './types';
 
 // --- CONFIG ---
-export const PLAYER_SPEED = 5;
-export const SPRINT_SPEED = 9;
-export const CROUCH_SPEED = 2; // Slow movement when sneaking
-export const BOSS_SPEED = 2.0;
+export const PLAYER_SPEED = 6;
+export const SPRINT_SPEED = 10;
+export const BOSS_SPEED_NORMAL = 1.5; // When light is off
+export const BOSS_SPEED_AGGRO = 4.5;  // When light is on (Phototaxis)
+
 export const SCREEN_WIDTH = 800;
 export const SCREEN_HEIGHT = 600;
 
 export const MAX_BATTERY = 100;
-export const BATTERY_DRAIN_NORMAL = 0.05; // Drain when F is on
-export const BATTERY_DRAIN_HIGH = 0.3;    // Drain when Space is held
-export const BATTERY_RECHARGE_RATE = 0.0; // No auto recharge now, must manage it
+export const BATTERY_DRAIN_NORMAL = 0.0; // No drain for normal light
+export const BATTERY_DRAIN_HIGH = 0.1;   // Fast drain for high beam (Reduced from 1.0)
+export const BATTERY_RECHARGE_RATE = 0.3; // Recharges when not using High Beam
 
 export const MAX_STAMINA = 100;
 export const STAMINA_DRAIN_RATE = 0.8;
 export const STAMINA_RECHARGE_RATE = 0.4;
-
-export const ATTACK_DAMAGE_BASE = 15;
-export const ATTACK_COOLDOWN = 30; // Frames
 
 // --- ITEMS ---
 export const ITEMS = {
@@ -28,9 +26,6 @@ export const ITEMS = {
   SHARD_TOY: '家豪的玩具碎片',
   BELT_BUCKLE: '皮帶扣環',
   DIARY_PAGE: '家豪的日記頁',
-  // Stat Items
-  DUMBBELL: '生鏽的啞鈴', // +Strength
-  SNEAKERS: '舊布鞋',    // +Stealth
 };
 
 // --- HELPER ---
@@ -46,16 +41,10 @@ const createProp = (id: string, x: number, y: number, w: number, h: number, labe
   label, color: color || '#525252'
 });
 
-const createBreakable = (id: string, x: number, y: number, w: number, h: number, label: string): Entity => ({
-  id, type: 'breakable', x, y, w, h,
-  interactable: false, visibleInNormal: true, visibleInReveal: true,
-  hp: 50, label, color: '#7c2d12'
-});
-
-const createVent = (id: string, x: number, y: number, targetRoom: RoomId, targetX: number): Entity => ({
-  id, type: 'vent', x, y, w: 60, h: 40,
+const createStairs = (id: string, x: number, y: number, targetY: number, label: string): Entity => ({
+  id, type: 'stairs', x, y, w: 60, h: 120,
   interactable: true, visibleInNormal: true, visibleInReveal: true,
-  targetRoom, targetX, label: '通風口 (蹲下)', color: '#171717'
+  targetY, label, color: '#404040'
 });
 
 // --- LEVEL DESIGN ---
@@ -77,14 +66,6 @@ export const ROOMS: Record<RoomId, RoomData> = {
       createProp('bus_sign', 150, 350, 20, 150, '公車站牌', '#64748b'),
       createProp('bench_broken', 400, 450, 100, 40, '長椅', '#475569'),
       createDoor('enter_school', 700, 360, RoomId.LOBBY, 50, '進入校園'),
-      
-      // Tutorial Items
-      {
-        id: ITEMS.DUMBBELL, type: 'item', x: 250, y: 460, w: 30, h: 20,
-        interactable: true, visibleInNormal: true, visibleInReveal: true,
-        color: '#57534e', label: '生鏽啞鈴', icon: 'fist',
-        dialogue: ["撿到了「生鏽的啞鈴」。", "（雖然很重，但拿在手上讓人覺得自己更有力量。）", "【系統：力量提升！按 K 鍵可以攻擊或破壞障礙物】"]
-      }
     ]
   },
 
@@ -100,14 +81,18 @@ export const ROOMS: Record<RoomId, RoomData> = {
       createDoor('to_hall_left', 50, 360, RoomId.HALL_LEFT, 700, '左側走廊'),
       createDoor('stairs_up_l', 200, 360, RoomId.SEATS_LEFT, 100, '左側樓梯 (2F)'),
       
-      // Alternative Path: Blocked door to Right Hall (Needs breaking)
-      createBreakable('barricade_right', 1350, 320, 40, 200, '腐朽的木板 (可破壞)'),
+      // STAIRS TO STAGE
+      createStairs('stage_stairs_left', 450, 360, 280, '上舞台'),
+      createStairs('stage_down_left', 520, 250, 480, '下舞台'), // On stage
+      
+      createStairs('stage_stairs_right', 1100, 360, 280, '上舞台'),
+      createStairs('stage_down_right', 1030, 250, 480, '下舞台'), // On stage
 
       // Decor
       createProp('bench_l', 150, 480, 80, 30, '積灰長椅'),
       createProp('notice_board', 300, 300, 60, 50, '公佈欄', '#78350f'),
 
-      // --- STAGE AREA ---
+      // --- STAGE AREA (Y approx 250-320) ---
       {
         id: 'curtain_left', type: 'decoration', x: 400, y: 100, w: 120, h: 500,
         interactable: false, visibleInNormal: true, visibleInReveal: true,
@@ -128,7 +113,7 @@ export const ROOMS: Record<RoomId, RoomData> = {
         ]
       },
       {
-        id: 'jiahao_bound', type: 'npc', x: 680, y: 320, w: 100, h: 180,
+        id: 'jiahao_bound', type: 'npc', x: 750, y: 250, w: 100, h: 180,
         interactable: true, visibleInNormal: true, visibleInReveal: true,
         color: '#a21caf', 
         label: '被束縛的孩子',
@@ -139,7 +124,7 @@ export const ROOMS: Record<RoomId, RoomData> = {
         ]
       },
       {
-        id: 'boss_altar', type: 'item', x: 640, y: 500, w: 200, h: 30,
+        id: 'boss_altar', type: 'item', x: 700, y: 430, w: 200, h: 30, // On stage floor
         interactable: true, visibleInNormal: true, visibleInReveal: true,
         color: '#581c87',
         label: '獻上記憶碎片',
@@ -192,14 +177,6 @@ export const ROOMS: Record<RoomId, RoomData> = {
       createDoor('to_sound_sl', 700, 360, RoomId.SOUND_ROOM, 100, '音控室'),
       
       createProp('cabinet', 250, 300, 80, 180, '獎盃櫃', '#78350f'),
-      
-      // Stealth Item
-      {
-        id: ITEMS.SNEAKERS, type: 'item', x: 150, y: 480, w: 30, h: 20,
-        interactable: true, visibleInNormal: true, visibleInReveal: true,
-        color: '#3b82f6', label: '舊布鞋', icon: 'shoe',
-        dialogue: ["撿到了「舊布鞋」。", "（軟底的鞋子，走起路來幾乎沒有聲音。）", "【系統：潛行提升！按 C 鍵蹲下移動，敵人更難發現你】"]
-      },
 
       {
         id: 'trophy_shelf', type: 'decoration', x: 350, y: 350, w: 150, h: 100,
@@ -264,9 +241,6 @@ export const ROOMS: Record<RoomId, RoomData> = {
     entities: [
       createDoor('back_lobby_hl', 700, 360, RoomId.LOBBY, 50, '大廳'),
       
-      // Shortcut Vent to 1F Right (Sneak Route)
-      createVent('vent_to_right', 100, 500, RoomId.HALL_RIGHT, 200),
-
       {
         id: 'mirror', type: 'decoration', x: 200, y: 300, w: 60, h: 100,
         interactable: false, visibleInNormal: true, visibleInReveal: true,
@@ -297,9 +271,6 @@ export const ROOMS: Record<RoomId, RoomData> = {
     entities: [
       createDoor('back_lobby_hr', 50, 360, RoomId.LOBBY, 1450, '大廳'),
       
-      // Shortcut Vent back to Left (Sneak Route)
-      createVent('vent_to_left', 200, 500, RoomId.HALL_LEFT, 150),
-
       {
         id: 'cleaning_supplies', type: 'decoration', x: 500, y: 400, w: 80, h: 80,
         interactable: false, visibleInNormal: true, visibleInReveal: true,

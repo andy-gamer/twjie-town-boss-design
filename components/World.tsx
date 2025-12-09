@@ -42,23 +42,24 @@ export const WorldRenderer = ({
     const playerScreenY = player.y + player.h / 3; 
 
     // Light Logic:
-    let maskSize = '100px'; 
-    let maskColor = 'transparent 5%, rgba(0,0,0,0.95) 30%, rgba(0,0,0,1) 60%'; // Very Dark (Off)
+    let maskSize = '150px'; 
+    // Brighter ambient light (0.6 instead of 0.95/1)
+    let maskColor = 'transparent 5%, rgba(0,0,0,0.6) 30%, rgba(0,0,0,0.9) 70%'; 
 
     if (player.flashlightOn && player.battery > 0) {
         if (isHighBeam) {
              // High Beam (Space)
              maskSize = '600px';
-             maskColor = 'transparent 10%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.98) 80%';
+             maskColor = 'transparent 10%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.85) 90%';
         } else {
              // Standard Beam (F)
              maskSize = '300px';
-             maskColor = 'transparent 5%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.98) 70%';
+             maskColor = 'transparent 5%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.85) 80%';
         }
     } else {
         // Off or Empty Battery
-        maskSize = '120px'; // Barely visible personal space
-        maskColor = 'transparent 0%, rgba(0,0,0,0.8) 40%, rgba(0,0,0,1) 70%';
+        maskSize = '150px';
+        maskColor = 'transparent 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.9) 80%';
     }
 
     return (

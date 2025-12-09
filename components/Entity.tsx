@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { DoorOpen, Ghost, Lock, User, Sparkles, AlertOctagon, Hammer, Wind } from 'lucide-react';
+import { DoorOpen, Ghost, Lock, User, Sparkles, AlertOctagon, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { Entity } from '../types';
 
 // Helper for Interaction Hint
@@ -12,51 +12,26 @@ const InteractHint = ({label}: {label?: string}) => (
 );
 
 export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, isLocked }: { entity: Entity, isRevealing: boolean, isInventoryItem: boolean, isLocked?: boolean }) => {
-    const { id, type, x, y, w, h, label, color, icon, revealText, interactable, visibleInNormal, visibleInReveal, hp } = entity;
+    const { id, type, x, y, w, h, label, color, icon, revealText, interactable, visibleInNormal, visibleInReveal } = entity;
     
     // Visibility Check
     const isVisible = (visibleInNormal && !isRevealing) || (visibleInReveal && isRevealing) || (visibleInNormal && visibleInReveal);
     
-    // Check breakable destroyed
-    if (type === 'breakable' && hp !== undefined && hp <= 0) return null;
-    
     if (isInventoryItem) return null; // Already picked up
     if (!isVisible) return null;
 
-    // --- BREAKABLE BARRIERS ---
-    if (type === 'breakable') {
-        return (
-            <div className="absolute flex flex-col items-center justify-end group"
+    // --- STAIRS ---
+    if (type === 'stairs') {
+         const isUp = label?.includes('上');
+         return (
+             <div className="absolute flex flex-col items-center justify-end group"
                  style={{ left: x, top: y, width: w, height: h }}>
-                 <div className="w-full h-full bg-orange-950 border-2 border-orange-900 flex items-center justify-center relative shadow-lg">
-                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/wood-pattern.png')] opacity-50"></div>
-                     {/* Cracks based on HP */}
-                     {hp && hp < 50 && <div className="absolute inset-0 border-t-2 border-r-2 border-black/50 rotate-45 transform origin-center"></div>}
-                     <Hammer className="text-white/50 w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity animate-pulse" />
+                 <div className="w-full h-full bg-gradient-to-t from-black/50 to-transparent border-x-2 border-white/10 flex items-center justify-center relative">
+                     {isUp ? <ArrowUpCircle className="text-white/30 animate-bounce" /> : <ArrowDownCircle className="text-white/30 animate-bounce" />}
                  </div>
-                 <div className="absolute -top-8 bg-red-900 text-white text-[10px] px-2 py-1 opacity-0 group-hover:opacity-100">
-                     [K] 攻擊 ({hp} HP)
-                 </div>
+                 {interactable && <InteractHint label={label} />}
             </div>
-        );
-    }
-
-    // --- VENTS ---
-    if (type === 'vent') {
-        return (
-            <div className="absolute flex flex-col items-center justify-end group"
-                 style={{ left: x, top: y, width: w, height: h }}>
-                 <div className="w-full h-full bg-black border-4 border-gray-600 flex items-center justify-center relative shadow-[inset_0_0_10px_black]">
-                     <div className="w-full h-1 bg-gray-700 absolute top-2"></div>
-                     <div className="w-full h-1 bg-gray-700 absolute top-5"></div>
-                     <div className="w-full h-1 bg-gray-700 absolute top-8"></div>
-                     <Wind className="text-gray-500 w-6 h-6 absolute -right-4 animate-pulse opacity-50" />
-                 </div>
-                 <div className="absolute -top-8 bg-blue-900 text-white text-[10px] px-2 py-1 opacity-0 group-hover:opacity-100">
-                     [C] 蹲下進入
-                 </div>
-            </div>
-        );
+         );
     }
 
     // --- DOORS ---
@@ -100,9 +75,6 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
         let itemColor = 'text-yellow-200';
         let glowColor = 'bg-yellow-400';
         
-        if (icon === 'fist') { itemColor = 'text-red-300'; glowColor = 'bg-red-500'; }
-        if (icon === 'shoe') { itemColor = 'text-blue-300'; glowColor = 'bg-blue-500'; }
-
         return (
             <div className="absolute flex flex-col items-center justify-end group"
                  style={{ left: x, top: y, width: w, height: h }}>
@@ -151,7 +123,6 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
                 
                 <div className="relative w-full h-full flex flex-col items-center justify-end">
                      <div className="absolute inset-0 bg-purple-600/20 blur-2xl animate-pulse rounded-full" />
-                     {/* Complex Vines Background omitted for brevity, keeping base structure */}
                      
                      <div className="relative z-10 w-24 h-40 bg-black rounded-t-full flex items-center justify-center border-x border-t border-purple-500/30 shadow-[0_0_30px_rgba(168,85,247,0.4)] overflow-hidden">
                          <User className="text-purple-900 opacity-80 w-16 h-16 translate-y-4" />

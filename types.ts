@@ -4,8 +4,8 @@ export enum GameState {
   EXPLORATION = 'EXPLORATION', 
   CORRUPTED = 'CORRUPTED', 
   BOSS_FIGHT = 'BOSS_FIGHT',
-  ENDING_A = 'ENDING_A',   
-  ENDING_B = 'ENDING_B',   
+  ENDING_WITHER = 'ENDING_WITHER',   // Good: Withered away
+  ENDING_COCOON = 'ENDING_COCOON',   // Bad: Turned into cocoon
 }
 
 export enum RoomId {
@@ -25,7 +25,7 @@ export interface Rect {
   h: number;
 }
 
-export type EntityType = 'npc' | 'item' | 'door' | 'decoration' | 'boss_core' | 'trap' | 'save_point' | 'breakable' | 'vent';
+export type EntityType = 'npc' | 'item' | 'door' | 'decoration' | 'boss_core' | 'trap' | 'save_point' | 'stairs';
 
 export interface Entity {
   id: string;
@@ -43,7 +43,6 @@ export interface Entity {
   // Logic
   interactable: boolean;
   reqItem?: string;
-  hp?: number; // For breakable objects
   
   // Visibility Mechanics
   visibleInNormal: boolean;
@@ -53,9 +52,10 @@ export interface Entity {
   dialogue?: string[];
   revealText?: string; 
   
-  // Door/Vent Logic
+  // Door/Stairs Logic
   targetRoom?: RoomId;
   targetX?: number;
+  targetY?: number; // For stairs within same room
 }
 
 export interface RoomData {
@@ -82,14 +82,6 @@ export interface PlayerState {
   flashlightOn: boolean; // Main toggle (F)
   battery: number;
   stamina: number;
-  
-  // RPG Stats
-  strength: number; // For breaking things and combat
-  stealth: number;  // For avoiding detection
-  
-  // Actions
-  isCrouching: boolean; // Toggle (C)
-  isAttacking: boolean; // Trigger (K)
 }
 
 export interface BossState {

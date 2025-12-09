@@ -1,8 +1,8 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Skull, Heart } from 'lucide-react';
+import { Skull, Heart, Leaf } from 'lucide-react';
 import { GameState, RoomId, PlayerState, BossState, Entity, RoomData } from './types';
-import { ROOMS, ITEMS, PLAYER_SPEED, SPRINT_SPEED, CROUCH_SPEED, ATTACK_DAMAGE_BASE, ATTACK_COOLDOWN, SCREEN_WIDTH, SCREEN_HEIGHT, MAX_BATTERY, MAX_STAMINA, BATTERY_DRAIN_NORMAL, BATTERY_DRAIN_HIGH, BATTERY_RECHARGE_RATE, STAMINA_DRAIN_RATE, STAMINA_RECHARGE_RATE } from './data';
+import { ROOMS, ITEMS, PLAYER_SPEED, SPRINT_SPEED, SCREEN_WIDTH, SCREEN_HEIGHT, MAX_BATTERY, MAX_STAMINA, BATTERY_DRAIN_NORMAL, BATTERY_DRAIN_HIGH, BATTERY_RECHARGE_RATE, STAMINA_DRAIN_RATE, STAMINA_RECHARGE_RATE } from './data';
 import { useInput, useGameLoop } from './hooks';
 import { WorldRenderer, HUD, DialogueBox } from './components';
 import { updateBossLogic } from './bossAI';
@@ -22,21 +22,13 @@ export default function App() {
     flashlightOn: false, // Default OFF
     battery: MAX_BATTERY,
     stamina: MAX_STAMINA,
-    
-    // RPG Stats
-    strength: 1,
-    stealth: 1,
-    
-    // Actions
-    isCrouching: false,
-    isAttacking: false
   });
 
   const [boss, setBoss] = useState<BossState>({
     active: false,
     phase: 1,
     health: 100,
-    x: 600, y: 350, 
+    x: 800, y: 250, 
     stunned: false,
     stunTimer: 0
   });
@@ -51,7 +43,6 @@ export default function App() {
   
   // Mechanics State
   const [isRevealing, setIsRevealing] = useState(false); // Q Toggle
-  const attackCooldownRef = useRef(0);
   
   // Floating thought bubble state
   const [thought, setThought] = useState<string | null>(null);
@@ -73,10 +64,6 @@ export default function App() {
   // --- PROGRESSION LOGIC ---
   const isDoorLocked = useCallback((doorId: string) => {
       const invCount = player.inventory.length; 
-      // Logic for inventory based locking...
-      if (doorId === 'to_hall_left') return false; 
-      
-      // Barricaded doors removed from this logic as they are now 'breakable' entities
       
       // Story locks
       if (doorId === 'stairs_up_l') return invCount < 2;
@@ -174,7 +161,7 @@ export default function App() {
                      setDialogue([
                          "等等！那是... 家豪？",
                          "（為什麼他會出現在這裡？）",
-                         "（按 [F] 開啟手電筒，按 [C] 蹲下潛行，按 [K] 攻擊。）"
+                         "（按 [F] 開啟手電筒，長按 [Space] 使用強力光束燒灼。）"
                      ]);
                      // Auto turn on flashlight for player
                      setPlayer(p => ({...p, flashlightOn: true}));
@@ -191,27 +178,20 @@ export default function App() {
         let newBattery = prev.battery;
         let newStamina = prev.stamina;
 
-        // Battery: Only drains if Flashlight is ON (F). High Beam (Space) drains faster.
-        if (prev.flashlightOn) {
-            const drain = isHighBeam ? BATTERY_DRAIN_HIGH : BATTERY_DRAIN_NORMAL;
-            newBattery = Math.max(0, prev.battery - drain);
+        // Battery: Normal light (F) = NO DRAIN. High Beam (Space) = DRAIN.
+        if (prev.flashlightOn && isHighBeam) {
+            newBattery = Math.max(0, prev.battery - BATTERY_DRAIN_HIGH);
         } else {
-            // Optional: Slight recharge if off? Or just no drain.
-            // newBattery = Math.min(MAX_BATTERY, prev.battery + BATTERY_RECHARGE_RATE);
+            // Recharge if not using High Beam
+            newBattery = Math.min(MAX_BATTERY, prev.battery + BATTERY_RECHARGE_RATE);
         }
         
-        // Auto turn off if dead battery
-        let newFlashlightState = prev.flashlightOn;
-        if (newBattery <= 0) newFlashlightState = false;
-
+        // Auto turn off high beam effect logic handled in renderer, but state keeps F on.
+        
         // Stamina
         let speed = PLAYER_SPEED;
         
-        if (prev.isCrouching) {
-            speed = CROUCH_SPEED;
-            // Crouching recovers stamina faster
-            newStamina = Math.min(MAX_STAMINA, prev.stamina + STAMINA_RECHARGE_RATE * 1.5);
-        } else if (isSprinting && isMoving && prev.stamina > 0) {
+        if (isSprinting && isMoving && prev.stamina > 0) {
             newStamina = Math.max(0, prev.stamina - STAMINA_DRAIN_RATE);
             speed = SPRINT_SPEED;
         } else {
@@ -245,22 +225,11 @@ export default function App() {
         if (nextX < 0) nextX = 0;
         if (nextX > room.width - prev.w) nextX = room.width - prev.w;
         
-        const floorTop = 380; 
+        // Floor clamping
+        const floorTop = 250; 
         const floorBottom = 540; 
         if (nextY < floorTop) nextY = floorTop;
         if (nextY > floorBottom - prev.h) nextY = floorBottom - prev.h;
-        
-        // Attack Cooldown Management
-        if (attackCooldownRef.current > 0) attackCooldownRef.current--;
-        let isAttacking = false;
-        if (keys.current.has('k') && attackCooldownRef.current === 0) {
-            isAttacking = true;
-            attackCooldownRef.current = ATTACK_COOLDOWN;
-            // Handle Attack Logic (Hit detection)
-            handleAttack(prev, room);
-        } else if (attackCooldownRef.current > ATTACK_COOLDOWN - 10) {
-             isAttacking = true; // Keep visual state for a few frames
-        }
 
         return { 
             ...prev, 
@@ -268,64 +237,22 @@ export default function App() {
             y: nextY, 
             facingRight: nextFacing,
             battery: newBattery,
-            flashlightOn: newBattery <= 0 ? false : prev.flashlightOn, 
             stamina: newStamina,
-            isAttacking: isAttacking
         };
     });
 
     // -- Boss Logic --
     if (gameState === GameState.BOSS_FIGHT && boss.active && boss.health > 0) {
-        setBoss(prev => updateBossLogic(prev, player, player.flashlightOn && isHighBeam, isRevealing, setGameState));
+        setBoss(prev => updateBossLogic(prev, player, player.flashlightOn, isHighBeam, setGameState, setPlayer));
+    }
+    
+    // Check Player Death for Bad Ending
+    if (gameState === GameState.BOSS_FIGHT && player.health <= 0) {
+        setGameState(GameState.ENDING_COCOON);
     }
 
-  }, [gameState, dialogue, boss.active, boss.health, introStep, isRevealing, isHighBeam, keys, isMoving, isSprinting, isCutscene, player.room]);
+  }, [gameState, dialogue, boss.active, boss.health, introStep, isRevealing, isHighBeam, keys, isMoving, isSprinting, isCutscene, player.room, player.flashlightOn, player.health]);
 
-  // Handle Attack Logic
-  const handleAttack = (p: PlayerState, room: RoomData) => {
-      // 1. Check for Breakable Objects
-      const hitBox = {
-          x: p.facingRight ? p.x + p.w : p.x - 50,
-          y: p.y,
-          w: 50,
-          h: p.h
-      };
-      
-      room.entities.forEach(e => {
-          if (e.type === 'breakable' && e.hp && e.hp > 0) {
-              // Check collision
-              if (hitBox.x < e.x + e.w && hitBox.x + hitBox.w > e.x &&
-                  hitBox.y < e.y + e.h && hitBox.y + hitBox.h > e.y) {
-                  
-                  e.hp -= (ATTACK_DAMAGE_BASE + p.strength * 5);
-                  showThought("攻擊！");
-                  
-                  if (e.hp <= 0) {
-                      // Destroyed
-                      e.visibleInNormal = false;
-                      e.visibleInReveal = false;
-                      showThought("障礙物被破壞了！");
-                  } else {
-                      showThought("還差一點...");
-                  }
-              }
-          }
-      });
-      
-      // 2. Check for Boss (Combat Strategy)
-      if (gameState === GameState.BOSS_FIGHT && boss.active) {
-          const dx = Math.abs((p.x + p.w/2) - boss.x);
-          const dy = Math.abs((p.y + p.h/2) - boss.y);
-          if (dx < 100 && dy < 100) {
-               setBoss(b => ({
-                   ...b, 
-                   health: b.health - (2 + p.strength), // Physical damage
-                   stunned: true,
-                   stunTimer: 20
-               }));
-          }
-      }
-  };
 
   useGameLoop(update);
 
@@ -346,18 +273,9 @@ export default function App() {
              setIsRevealing(prev => !prev);
           }
           if (key === 'f') {
-             setPlayer(p => {
-                 if (p.battery <= 0) {
-                     showThought("沒電了...");
-                     return p;
-                 }
-                 return { ...p, flashlightOn: !p.flashlightOn };
-             });
+             setPlayer(p => ({ ...p, flashlightOn: !p.flashlightOn }));
           }
-          if (key === 'c') {
-              setPlayer(p => ({ ...p, isCrouching: !p.isCrouching }));
-          }
-          if (key === 'e') {
+          if (key === 'e' || key === 'enter') {
               handleInteraction();
           }
       };
@@ -390,7 +308,6 @@ export default function App() {
     const room = ROOMS[player.room];
     const candidates = room.entities.filter(e => {
         if (e.type === 'item' && player.inventory.includes(e.id)) return false;
-        if (e.type === 'breakable' && (!e.hp || e.hp <= 0)) return false;
         
         const isVisible = (e.visibleInNormal && !isRevealing) || 
                           (e.visibleInReveal && isRevealing) || 
@@ -415,30 +332,16 @@ export default function App() {
 
     // --- INTERACTION HANDLERS ---
     
-    // 1. Breakable (Feedback if E pressed instead of K)
-    if (nearby.type === 'breakable') {
-        showThought("這看起來很脆弱，也許可以用力(K)打破它。");
+    // 1. Stairs (Lobby Stage)
+    if (nearby.type === 'stairs' && nearby.targetY) {
+        setPlayer(p => ({ ...p, y: nearby.targetY! }));
         return;
     }
 
-    // 2. Vent (Requires Crouching)
-    if (nearby.type === 'vent') {
-        if (!player.isCrouching) {
-            showThought("太窄了，我得蹲下(C)才能進去。");
-            return;
-        }
-        if (nearby.targetRoom) {
-             setPlayer(p => ({...p, room: nearby.targetRoom!, x: nearby.targetX || 100}));
-             showThought("爬過通風口...");
-        }
-        return;
-    }
-
-    // 3. Doors
+    // 2. Doors
     if (nearby.type === 'door' && nearby.targetRoom) {
         // Locked Logic
         if (isDoorLocked(nearby.id)) {
-            // Special case: Barricades handled by 'breakable' type now, but if there's a logic lock:
              setDialogue([
                 "這扇門被黑色的藤蔓封鎖了。",
                 "（必須解開心結才能通過。）"
@@ -453,32 +356,30 @@ export default function App() {
             setGameState(GameState.EXPLORATION);
         }
     } 
-    // 4. Items (Stats Upgrades)
+    // 3. Items 
     else if (nearby.type === 'item') {
         if (!player.inventory.includes(nearby.id)) {
             setPlayer(p => {
                 let stats = { ...p, inventory: [...p.inventory, nearby.id] };
-                // Apply Stats
-                if (nearby.id === ITEMS.DUMBBELL) stats.strength += 1;
-                if (nearby.id === ITEMS.SNEAKERS) stats.stealth += 1;
                 return stats;
             });
             if (nearby.dialogue) setDialogue(nearby.dialogue);
         }
     }
-    // 5. Boss Altar
+    // 4. Boss Altar
     else if (nearby.id === 'boss_altar') {
         const required = [ITEMS.SHARD_TROPHY, ITEMS.SHARD_TOY, ITEMS.BELT_BUCKLE, ITEMS.DIARY_PAGE];
         const collected = required.filter(i => player.inventory.includes(i));
         
         if (collected.length >= 4 && player.inventory.includes(ITEMS.YEARBOOK)) {
                 setGameState(GameState.BOSS_FIGHT);
-                setBoss(b => ({...b, active: true, x: 600, y: 350}));
+                setBoss(b => ({...b, active: true, x: 800, y: 250}));
                 setDialogue([
                     "【最終決戰】",
-                    "你可以選擇：",
-                    "1. 正面迎戰：開啟手電筒(F+Space)照射，或用蠻力(K)攻擊。",
-                    "2. 潛行周旋：關燈蹲下(C)尋找破綻。"
+                    "光是你唯一的武器。",
+                    "1. 怪物具有向光性：開燈會吸引他。",
+                    "2. 按住 [Space] 使用強力光束燒毀核心，但要注意電力。",
+                    "3. 利用舞台樓梯(上下移動)與他周旋。"
                 ]);
         } else {
              setDialogue([
@@ -488,16 +389,6 @@ export default function App() {
     }
     else if (nearby.dialogue) {
         setDialogue(nearby.dialogue);
-    }
-    
-    // Ending Trigger
-    if (gameState === GameState.BOSS_FIGHT && nearby.id === 'jiahao_bound' && boss.health < 40) {
-            setDialogue([
-                "家豪... 我知道你很痛苦。",
-                "我們都已經長大了，那些傷痛... 不會再傷害你了。",
-                "（你緊緊握住了那雙顫抖的手）"
-            ]);
-            setTimeout(() => setGameState(GameState.ENDING_B), 4000);
     }
   };
 
@@ -518,34 +409,34 @@ export default function App() {
       );
   }
 
-  if (gameState === GameState.ENDING_A) {
+  if (gameState === GameState.ENDING_WITHER) {
       return (
-          <div className="w-screen h-screen bg-black flex flex-col items-center justify-center text-red-500 p-10 text-center relative overflow-hidden">
-               <div className="noise-overlay" style={{opacity: 0.3}} />
-              <Skull size={80} className="mb-6 animate-pulse" />
-              <h2 className="text-5xl font-bold mb-6 font-serif tracking-widest">結局 A：枯萎</h2>
-              <p className="text-lg text-gray-400 mb-8 max-w-xl leading-relaxed font-serif">
-                  你用暴力摧毀了夢魘。<br/>
-                  家豪消散了，但你永遠不知道他真正想說什麼。<br/>
-                  (嘗試在戰鬥中更多地去「理解」他，而不是「對抗」他。)
+          <div className="w-screen h-screen bg-[#f0f0f0] flex flex-col items-center justify-center text-black p-10 text-center relative">
+               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,white,transparent)] opacity-50" />
+              <Leaf size={80} className="mb-6 text-gray-400" />
+              <h2 className="text-5xl font-bold mb-6 font-serif tracking-widest text-gray-800">結局 A：枯萎</h2>
+              <p className="text-lg text-gray-700 mb-8 max-w-xl leading-relaxed font-serif">
+                  在強光的照射下，黑影如枯葉般碎裂、消散。<br/>
+                  他最後的表情似乎是解脫。<br/>
+                  夢魘結束了，定格在最悲傷的瞬間。
               </p>
-              <button onClick={() => window.location.reload()} className="text-white border-b border-transparent hover:border-white transition-colors">重新開始</button>
+              <button onClick={() => window.location.reload()} className="text-black border-b border-black hover:opacity-50 transition-opacity">重新開始</button>
           </div>
       );
   }
 
-  if (gameState === GameState.ENDING_B) {
+  if (gameState === GameState.ENDING_COCOON) {
       return (
-          <div className="w-screen h-screen bg-[#f0f0f0] flex flex-col items-center justify-center text-black p-10 text-center relative">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,white,transparent)] opacity-50" />
-              <Heart size={80} className="mb-6 text-pink-500 drop-shadow-lg" />
-              <h2 className="text-5xl font-bold mb-6 font-serif tracking-widest text-gray-800">結局 B：釋懷</h2>
-              <p className="text-lg text-gray-700 mb-8 max-w-xl leading-relaxed font-serif">
-                  你接納了恐懼，擁抱了過去。<br/>
-                  家豪笑著離開了。<br/>
-                  這場雨，終於停了。
+          <div className="w-screen h-screen bg-black flex flex-col items-center justify-center text-red-500 p-10 text-center relative overflow-hidden">
+              <div className="noise-overlay" style={{opacity: 0.3}} />
+              <Skull size={80} className="mb-6 animate-pulse" />
+              <h2 className="text-5xl font-bold mb-6 font-serif tracking-widest">結局 B：沈睡</h2>
+              <p className="text-lg text-gray-400 mb-8 max-w-xl leading-relaxed font-serif">
+                  你放棄了抵抗。<br/>
+                  藤蔓溫柔地將你包裹，結成一個巨大的花繭。<br/>
+                  我們在三期再見...
               </p>
-              <button onClick={() => window.location.reload()} className="text-black border-b border-black hover:opacity-50 transition-opacity">重新開始</button>
+              <button onClick={() => window.location.reload()} className="text-white border-b border-transparent hover:border-white transition-colors">重新開始</button>
           </div>
       );
   }
@@ -583,7 +474,7 @@ export default function App() {
                     isHighBeam={isHighBeam}
                     inventory={player.inventory}
                     boss={boss}
-                    objective={player.battery <= 0 ? "沒電了！利用環境躲避！" : "探索校園，尋找真相"}
+                    objective={player.battery <= 0 ? "沒電了！注意躲避！" : "探索校園，尋找真相"}
                     battery={player.battery}
                     stamina={player.stamina}
                     player={player} 
