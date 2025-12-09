@@ -1,7 +1,8 @@
 
 import React from 'react';
-import { Book, Trophy, Puzzle, Circle, FileText, ChevronDown, User, MapPin, AlertTriangle } from 'lucide-react';
+import { Book, Trophy, Puzzle, Circle, FileText, ChevronDown, User, MapPin, AlertTriangle, Battery, Zap } from 'lucide-react';
 import { BossState } from '../types';
+import { MAX_BATTERY, MAX_STAMINA } from '../data';
 
 // --- ICONS & INVENTORY ---
 const getItemIcon = (name: string) => {
@@ -37,7 +38,25 @@ const InventoryDisplay = ({ inventory }: { inventory: string[] }) => {
 };
 
 // --- HUD ---
-export const HUD = ({ roomName, isRevealing, isFlashlightOn, inventory, boss, objective }: { roomName: string, isRevealing: boolean, isFlashlightOn: boolean, inventory: string[], boss: BossState, objective: string }) => {
+export const HUD = ({ 
+    roomName, 
+    isRevealing, 
+    isFlashlightOn, 
+    inventory, 
+    boss, 
+    objective,
+    battery,
+    stamina
+}: { 
+    roomName: string, 
+    isRevealing: boolean, 
+    isFlashlightOn: boolean, 
+    inventory: string[], 
+    boss: BossState, 
+    objective: string,
+    battery: number,
+    stamina: number
+}) => {
     return (
         <>
             {/* Objective Banner */}
@@ -47,6 +66,24 @@ export const HUD = ({ roomName, isRevealing, isFlashlightOn, inventory, boss, ob
                         <AlertTriangle size={10} /> Current Objective <AlertTriangle size={10} />
                     </div>
                     <span className="drop-shadow-[0_0_5px_rgba(255,0,0,0.5)] text-lg">{objective}</span>
+                </div>
+            </div>
+
+            {/* Stats Bars (Battery & Stamina) */}
+            <div className="fixed top-24 left-6 z-50 flex flex-col gap-2 pointer-events-none">
+                {/* Battery */}
+                <div className="flex items-center gap-2">
+                    <Battery size={16} className={`${battery < 20 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`} />
+                    <div className="w-32 h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-600">
+                        <div className="h-full bg-yellow-400 transition-all duration-200" style={{ width: `${(battery / MAX_BATTERY) * 100}%` }} />
+                    </div>
+                </div>
+                {/* Stamina */}
+                <div className="flex items-center gap-2">
+                    <Zap size={16} className="text-blue-400" />
+                    <div className="w-32 h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-600">
+                        <div className="h-full bg-blue-500 transition-all duration-100" style={{ width: `${(stamina / MAX_STAMINA) * 100}%` }} />
+                    </div>
                 </div>
             </div>
 
@@ -70,12 +107,16 @@ export const HUD = ({ roomName, isRevealing, isFlashlightOn, inventory, boss, ob
             {/* Controls Help */}
             <div className="fixed top-6 right-6 flex flex-col items-end gap-2 z-50 select-none">
                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isRevealing ? "bg-red-950/80 border-red-500 text-red-100 shadow-[0_0_15px_red]" : "bg-black/40 border-white/10 text-white/40"}`}>
-                    <span className="text-[10px] font-bold">F</span>
+                    <span className="text-[10px] font-bold">Q</span>
                     <span className="text-xs">Reveal</span>
                 </div>
                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isFlashlightOn ? "bg-yellow-950/80 border-yellow-500 text-yellow-100 shadow-[0_0_15px_yellow]" : "bg-black/40 border-white/10 text-white/40"}`}>
-                    <span className="text-[10px] font-bold">SHIFT</span>
+                    <span className="text-[10px] font-bold">F</span>
                     <span className="text-xs">Light</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border bg-black/40 border-white/10 text-white/40">
+                    <span className="text-[10px] font-bold">SHIFT</span>
+                    <span className="text-xs">Sprint</span>
                 </div>
             </div>
 

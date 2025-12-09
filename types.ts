@@ -11,7 +11,6 @@ export enum GameState {
 export enum RoomId {
   BUS_STOP = 'BUS_STOP',
   LOBBY = 'LOBBY',
-  // STAGE removed, merged into LOBBY
   HALL_LEFT = 'HALL_LEFT',    
   HALL_RIGHT = 'HALL_RIGHT',  
   SEATS_LEFT = 'SEATS_LEFT',  
@@ -77,6 +76,11 @@ export interface PlayerState {
   inventory: string[];
   health: number;
   sanity: number;
+  
+  // New Mechanics
+  flashlightOn: boolean;
+  battery: number;
+  stamina: number;
 }
 
 export interface BossState {

@@ -2,9 +2,18 @@ import { RoomId, RoomData, Entity } from './types';
 
 // --- CONFIG ---
 export const PLAYER_SPEED = 5;
+export const SPRINT_SPEED = 9;
 export const BOSS_SPEED = 2.0;
 export const SCREEN_WIDTH = 800;
 export const SCREEN_HEIGHT = 600;
+
+export const MAX_BATTERY = 100;
+export const BATTERY_DRAIN_RATE = 0.2; // Per frame
+export const BATTERY_RECHARGE_RATE = 0.1; // Per frame
+
+export const MAX_STAMINA = 100;
+export const STAMINA_DRAIN_RATE = 0.8;
+export const STAMINA_RECHARGE_RATE = 0.4;
 
 // --- ITEMS ---
 export const ITEMS = {

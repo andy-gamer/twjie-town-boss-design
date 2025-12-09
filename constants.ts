@@ -1,10 +1,20 @@
+
 import { RoomId, RoomData, Entity } from './types';
 
 // --- CONFIG ---
 export const PLAYER_SPEED = 5;
+export const SPRINT_SPEED = 9;
 export const BOSS_SPEED = 2.0;
 export const SCREEN_WIDTH = 800;
 export const SCREEN_HEIGHT = 600;
+
+export const MAX_BATTERY = 100;
+export const BATTERY_DRAIN_RATE = 0.2; // Per frame
+export const BATTERY_RECHARGE_RATE = 0.1; // Per frame
+
+export const MAX_STAMINA = 100;
+export const STAMINA_DRAIN_RATE = 0.8;
+export const STAMINA_RECHARGE_RATE = 0.4;
 
 // --- ITEMS ---
 export const ITEMS = {
@@ -34,8 +44,8 @@ export const ROOMS: Record<RoomId, RoomData> = {
     backgroundClass: "bg-slate-900", 
     entities: [
       {
-        id: 'shadow_boy_intro', type: 'npc', x: 600, y: 400, w: 40, h: 80,
-        interactable: false, visibleInNormal: false, visibleInReveal: true,
+        id: 'shadow_boy_intro', type: 'npc', x: 200, y: 400, w: 40, h: 80,
+        interactable: false, visibleInNormal: true, visibleInReveal: true,
         revealText: "（不可直視的殘影...似乎在指引方向）", color: '#dc2626',
         icon: 'ghost'
       },
@@ -51,7 +61,6 @@ export const ROOMS: Record<RoomId, RoomData> = {
     height: 600,
     backgroundClass: "bg-stone-900",
     entities: [
-      // createDoor('to_stage', 550, 380, RoomId.STAGE, 100, '舞台入口'), // Removed as STAGE is removed from RoomId
       createDoor('to_hall_left', 50, 380, RoomId.HALL_LEFT, 700, '左側走廊'),
       createDoor('to_hall_right', 1100, 380, RoomId.HALL_RIGHT, 100, '右側走廊'),
       
@@ -66,9 +75,6 @@ export const ROOMS: Record<RoomId, RoomData> = {
       }
     ]
   },
-
-  // 3. 舞台 (Removed from types, merged into LOBBY in data.ts)
-  // [RoomId.STAGE]: { ... } removed to fix type error
 
   // 4. 音控室 (事件觸發點)
   [RoomId.SOUND_ROOM]: {

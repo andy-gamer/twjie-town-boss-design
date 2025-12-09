@@ -37,6 +37,18 @@ export const WorldRenderer = ({
     if (isCorrupted && !isRevealing) containerFilter += " sepia(0.3) contrast(1.2) saturate(1.2)";
     if (isDistorting) containerFilter += " hue-rotate(90deg) contrast(2) brightness(1.5) blur(2px)";
 
+    // Calculate player position relative to screen for the darkness mask
+    const playerScreenX = player.x - cameraX + player.w / 2;
+    const playerScreenY = player.y + player.h / 3; 
+
+    // Proper CSS syntax for radial-gradient size/shape
+    // Flashlight ON: Large radius, soft falloff
+    // Flashlight OFF: Small radius (150px), hard darkness
+    const maskSize = isFlashlightOn ? '600px' : '150px'; 
+    const maskColor = isFlashlightOn 
+        ? 'transparent 5%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.95) 70%' 
+        : 'transparent 0%, black 80%';
+
     return (
         <div 
             className={`relative overflow-hidden shadow-2xl transition-all duration-300 border-y-[10px] border-black ${isDistorting ? 'glitch-mode' : ''}`}
@@ -64,9 +76,19 @@ export const WorldRenderer = ({
                 </div>
             </div>
 
+            {/* Darkness Overlay (Fog of War) */}
+            {!isRevealing && (
+                <div 
+                    className="absolute inset-0 z-40 pointer-events-none transition-all duration-500 ease-in-out"
+                    style={{
+                        background: `radial-gradient(circle ${maskSize} at ${playerScreenX}px ${playerScreenY}px, ${maskColor})`
+                    }}
+                />
+            )}
+
             {isRevealing && <div className="noise-overlay" />}
-            <div className="scanlines w-full h-full absolute top-0 left-0" />
-            <div className="vignette w-full h-full absolute top-0 left-0" />
+            <div className="scanlines w-full h-full absolute top-0 left-0 z-50" />
+            <div className="vignette w-full h-full absolute top-0 left-0 z-50" />
         </div>
     );
 };

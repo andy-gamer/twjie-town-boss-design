@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Skull, Heart } from 'lucide-react';
 import { GameState, RoomId, PlayerState, BossState } from './types';
-import { ROOMS, ITEMS, PLAYER_SPEED, SCREEN_WIDTH } from './data';
+import { ROOMS, ITEMS, PLAYER_SPEED, SPRINT_SPEED, SCREEN_WIDTH, MAX_BATTERY, MAX_STAMINA, BATTERY_DRAIN_RATE, BATTERY_RECHARGE_RATE, STAMINA_DRAIN_RATE, STAMINA_RECHARGE_RATE } from './data';
 import { useInput, useGameLoop } from './hooks';
 import { WorldRenderer, HUD, DialogueBox } from './components';
 import { updateBossLogic } from './bossAI';
@@ -16,7 +16,10 @@ export default function App() {
     facingRight: true,
     inventory: [],
     health: 100,
-    sanity: 100
+    sanity: 100,
+    flashlightOn: false,
+    battery: MAX_BATTERY,
+    stamina: MAX_STAMINA
   });
 
   const [boss, setBoss] = useState<BossState>({
@@ -30,11 +33,11 @@ export default function App() {
   
   const [dialogue, setDialogue] = useState<string[] | null>(null);
   const [dialogueIndex, setDialogueIndex] = useState(0);
-  const [tutorialStep, setTutorialStep] = useState(0); 
   
   // Cutscene & Camera State
   const [isCutscene, setIsCutscene] = useState(false);
   const [cameraOverride, setCameraOverride] = useState<number | null>(null);
+  const [introStep, setIntroStep] = useState(0); // 0: Start Screen, 1: Wait, 2: Boy Runs, 3: Player Control
   
   // Floating thought bubble state
   const [thought, setThought] = useState<string | null>(null);
@@ -48,8 +51,8 @@ export default function App() {
   const keys = useInput();
   
   // Derived Inputs
-  const isRevealing = keys.current.has('f');
-  const isFlashlightOn = keys.current.has('shift');
+  const isRevealing = keys.current.has('q'); 
+  const isSprinting = keys.current.has('shift'); 
   const isMoving = keys.current.has('w') || keys.current.has('a') || keys.current.has('s') || keys.current.has('d') ||
                    keys.current.has('arrowup') || keys.current.has('arrowleft') || keys.current.has('arrowdown') || keys.current.has('arrowright');
 
@@ -69,7 +72,7 @@ export default function App() {
   // --- HELPER: OBJECTIVE TEXT ---
   const getObjective = () => {
     if (gameState === GameState.INTRO) return "跟隨人影進入校園";
-    if (gameState === GameState.BOSS_FIGHT) return "擊敗心中的夢魘！(Shift手電筒)";
+    if (gameState === GameState.BOSS_FIGHT) return "擊敗心中的夢魘！(手電筒)";
     if (gameState === GameState.ENDING_A || gameState === GameState.ENDING_B) return "遊戲結束";
     
     const invCount = player.inventory.length;
@@ -89,6 +92,17 @@ export default function App() {
       thoughtTimeoutRef.current = setTimeout(() => setThought(null), 4000);
   }, []);
 
+  // --- INTRO CUTSCENE LOGIC ---
+  useEffect(() => {
+    // Only proceed if step is 1 (User clicked Start)
+    if (gameState === GameState.INTRO && introStep === 1) {
+      const timer = setTimeout(() => {
+         setIntroStep(2); // Start the boy running
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState, introStep]);
+
   // CUTSCENE: Enter Lobby Logic
   useEffect(() => {
     const triggerId = 'lobby_cutscene_initial';
@@ -98,28 +112,54 @@ export default function App() {
         setIsCutscene(true);
         setCameraOverride(0);
 
+        // Sequence: Pan to stage -> Wait -> Pan Back -> Dialogue
         let panProgress = 0;
+        let waiting = false;
+        let panningBack = false;
+
         const panInterval = setInterval(() => {
-            panProgress += 10;
-            if (panProgress >= 250) { 
-                clearInterval(panInterval);
-                setCameraOverride(250); 
-                
-                setTimeout(() => {
-                     setDialogue([
-                         "那孩子... 跑到舞台上了？",
-                         "（舞台中間的紅布幕後，隱約有個人影。）",
-                         "（他看起來... 被荊棘死死纏住了。）",
-                         "（其他的門也被黑色的藤蔓封鎖了...）",
-                         "我必須先去唯一開著的左側走廊看看。"
-                     ]);
-                }, 500);
+            if (waiting) return;
+
+            if (!panningBack) {
+                // Pan To Stage
+                panProgress += 10;
+                if (panProgress >= 300) { 
+                    waiting = true;
+                    setCameraOverride(300);
+                    // Show a thought at the stage
+                    setTimeout(() => {
+                         showThought("那是什麼...？");
+                         setTimeout(() => {
+                            waiting = false;
+                            panningBack = true;
+                         }, 1500);
+                    }, 500);
+                } else {
+                    setCameraOverride(panProgress);
+                }
             } else {
-                setCameraOverride(panProgress);
+                // Pan Back to Player
+                panProgress -= 15; // Pan back faster
+                if (panProgress <= 0) {
+                    clearInterval(panInterval);
+                    setCameraOverride(0);
+                    setTimeout(() => {
+                        setDialogue([
+                            "那孩子... 跑到舞台上了？",
+                            "（舞台中間的紅布幕後，隱約有個人影。）",
+                            "（他看起來... 被荊棘死死纏住了。）",
+                            "我要過去看看。",
+                            "（但其他的門似乎被黑色的藤蔓封鎖了...）",
+                            "只能先從左側走廊開始調查了。"
+                        ]);
+                    }, 300);
+                } else {
+                     setCameraOverride(panProgress);
+                }
             }
         }, 16);
     }
-  }, [player.room]);
+  }, [player.room, showThought]);
 
   useEffect(() => {
       const triggerId = 'lobby_cutscene_initial';
@@ -132,70 +172,132 @@ export default function App() {
 
   const update = useCallback((time: number) => {
     if (dialogue) return; 
-    if (isCutscene) return; 
 
-    // -- Tutorial --
-    if (gameState === GameState.INTRO && tutorialStep === 0 && isMoving) setTutorialStep(1);
-    if (tutorialStep === 1 && isRevealing) setTutorialStep(2);
-    if (tutorialStep === 2 && isFlashlightOn) setTutorialStep(3);
-
-    // -- Intro Shadow Boy --
-    if (player.room === RoomId.BUS_STOP) {
-        const shadowBoy = ROOMS[RoomId.BUS_STOP].entities.find(e => e.id === 'shadow_boy_intro');
-        if (shadowBoy) {
-            const dist = Math.abs(player.x - shadowBoy.x);
-            if (dist < 200 && shadowBoy.x < 750) {
-                shadowBoy.x += 2; 
-            }
-        }
+    // -- Intro Cutscene Updates --
+    if (gameState === GameState.INTRO && player.room === RoomId.BUS_STOP) {
+         if (introStep === 2) {
+             const shadowBoy = ROOMS[RoomId.BUS_STOP].entities.find(e => e.id === 'shadow_boy_intro');
+             if (shadowBoy) {
+                 shadowBoy.x += 6; // Run fast
+                 if (shadowBoy.x > 750) {
+                     shadowBoy.visibleInNormal = false;
+                     shadowBoy.visibleInReveal = false;
+                     // Trigger player reaction
+                     setIntroStep(3);
+                     setDialogue([
+                         "等等！那是... 家豪？",
+                         "這麼晚了，他怎麼會跑進已經廢棄的學校？",
+                         "我得跟上去看看。"
+                     ]);
+                 }
+             }
+         }
+         // Lock player movement during intro run
+         if (introStep < 3) return;
     }
 
-    // -- Player Movement --
+    if (isCutscene) return; 
+
+    // -- Battery & Stamina Logic --
     setPlayer(prev => {
-      let dx = 0;
-      let dy = 0;
+        let newBattery = prev.battery;
+        let newStamina = prev.stamina;
+        let newFlashlightOn = prev.flashlightOn;
 
-      if (keys.current.has('w') || keys.current.has('arrowup')) dy -= 1;
-      if (keys.current.has('s') || keys.current.has('arrowdown')) dy += 1;
-      if (keys.current.has('a') || keys.current.has('arrowleft')) dx -= 1;
-      if (keys.current.has('d') || keys.current.has('arrowright')) dx += 1;
+        // Battery
+        if (newFlashlightOn) {
+            newBattery = Math.max(0, prev.battery - BATTERY_DRAIN_RATE);
+            if (newBattery <= 0) {
+                newFlashlightOn = false; // Force off
+            }
+        } else {
+            newBattery = Math.min(MAX_BATTERY, prev.battery + BATTERY_RECHARGE_RATE);
+        }
 
-      if (dx !== 0 || dy !== 0) {
-          const length = Math.sqrt(dx*dx + dy*dy);
-          dx = (dx / length) * PLAYER_SPEED;
-          dy = (dy / length) * PLAYER_SPEED * 0.6; 
-      }
+        // Stamina
+        let speed = PLAYER_SPEED;
+        if (isSprinting && isMoving && prev.stamina > 0) {
+            newStamina = Math.max(0, prev.stamina - STAMINA_DRAIN_RATE);
+            speed = SPRINT_SPEED;
+        } else {
+            newStamina = Math.min(MAX_STAMINA, prev.stamina + STAMINA_RECHARGE_RATE);
+        }
 
-      let nextX = prev.x + dx;
-      let nextY = prev.y + dy;
-      let nextFacing = prev.facingRight;
-      
-      if (dx < 0) nextFacing = false;
-      if (dx > 0) nextFacing = true;
+        // Movement
+        let dx = 0;
+        let dy = 0;
 
-      const room = ROOMS[prev.room];
-      
-      if (nextX < 0) nextX = 0;
-      if (nextX > room.width - prev.w) nextX = room.width - prev.w;
-      
-      const floorTop = 380; 
-      const floorBottom = 540; 
-      if (nextY < floorTop) nextY = floorTop;
-      if (nextY > floorBottom - prev.h) nextY = floorBottom - prev.h;
+        if (keys.current.has('w') || keys.current.has('arrowup')) dy -= 1;
+        if (keys.current.has('s') || keys.current.has('arrowdown')) dy += 1;
+        if (keys.current.has('a') || keys.current.has('arrowleft')) dx -= 1;
+        if (keys.current.has('d') || keys.current.has('arrowright')) dx += 1;
 
-      return { ...prev, x: nextX, y: nextY, facingRight: nextFacing };
+        if (dx !== 0 || dy !== 0) {
+            const length = Math.sqrt(dx*dx + dy*dy);
+            dx = (dx / length) * speed;
+            dy = (dy / length) * speed * 0.6; 
+        }
+
+        let nextX = prev.x + dx;
+        let nextY = prev.y + dy;
+        let nextFacing = prev.facingRight;
+        
+        if (dx < 0) nextFacing = false;
+        if (dx > 0) nextFacing = true;
+
+        const room = ROOMS[prev.room];
+        
+        if (nextX < 0) nextX = 0;
+        if (nextX > room.width - prev.w) nextX = room.width - prev.w;
+        
+        const floorTop = 380; 
+        const floorBottom = 540; 
+        if (nextY < floorTop) nextY = floorTop;
+        if (nextY > floorBottom - prev.h) nextY = floorBottom - prev.h;
+
+        return { 
+            ...prev, 
+            x: nextX, 
+            y: nextY, 
+            facingRight: nextFacing,
+            battery: newBattery,
+            stamina: newStamina,
+            flashlightOn: newFlashlightOn
+        };
     });
 
     // -- Boss Logic (Delegated) --
     if (gameState === GameState.BOSS_FIGHT && boss.active && boss.health > 0) {
-        setBoss(prev => updateBossLogic(prev, player, isFlashlightOn, isRevealing, setGameState));
+        setBoss(prev => updateBossLogic(prev, player, player.flashlightOn, isRevealing, setGameState));
     }
 
-  }, [gameState, dialogue, boss.active, boss.health, tutorialStep, isRevealing, isFlashlightOn, player, keys, isMoving, isCutscene]);
+  }, [gameState, dialogue, boss.active, boss.health, introStep, isRevealing, player.flashlightOn, keys, isMoving, isSprinting, isCutscene, player.room]);
 
   useGameLoop(update);
 
-  // --- INTERACTION ---
+  // --- CONTROLS ---
+  useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+          const key = e.key.toLowerCase();
+          
+          if (key === 'f') {
+             setPlayer(p => {
+                 // Cannot turn on if empty
+                 if (p.battery <= 0) return p;
+                 return { ...p, flashlightOn: !p.flashlightOn };
+             });
+          }
+          
+          if (key === 'e') {
+              handleInteraction();
+          }
+      };
+      
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [player.inventory, player.battery, player.room, gameState, dialogue, boss]);
+
+
   const handleInteraction = () => {
     if (dialogue) {
         if (dialogueIndex < dialogue.length - 1) {
@@ -273,7 +375,7 @@ export default function App() {
                     "你將畢業紀念冊與碎片放上舞台...",
                     "九重葛開始瘋狂蠕動！",
                     "家豪發出痛苦的尖叫：「不要看我！不要看裡面！」",
-                    "【戰鬥開始】按住 F 看取核心，並用 SHIFT 手電筒照射來造成傷害！"
+                    "【戰鬥開始】按住 Q 看取核心，並用 F 開啟手電筒照射來造成傷害！"
                 ]);
         } else {
              setDialogue([
@@ -296,34 +398,16 @@ export default function App() {
     }
   };
 
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key.toLowerCase() === 'e') handleInteraction();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [player, gameState, dialogue, dialogueIndex, boss, isDoorLocked]);
-
   // --- RENDERING SCENES ---
-  if (gameState === GameState.INTRO && player.room === RoomId.BUS_STOP && player.x < 200) {
+  if (gameState === GameState.INTRO && player.room === RoomId.BUS_STOP && introStep === 0) {
       return (
           <div className="w-screen h-screen bg-black flex flex-col items-center justify-center text-white space-y-8 z-50 overflow-hidden relative">
               <div className="scanlines w-full h-full absolute top-0 left-0" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(50,0,0,0.5),rgba(0,0,0,1))]" />
-              
               <h1 className="text-7xl font-serif text-red-700 tracking-[0.5em] crt-flicker relative z-10 border-y-2 border-red-900/50 py-4">故人之夢</h1>
               <p className="text-xl text-gray-400 font-serif tracking-widest relative z-10">第一章：大禮堂</p>
-              
-              <div className="flex flex-col items-center space-y-3 text-sm text-gray-500 relative z-10 bg-black/50 p-6 rounded border border-gray-800 backdrop-blur-sm">
-                  <div className="flex items-center gap-3"><span className="border border-gray-600 px-2 py-1 rounded text-gray-300">W A S D</span> <span className="text-xs">移動 Movement</span></div>
-                  <div className="flex items-center gap-3"><span className="border border-gray-600 px-2 py-1 rounded text-gray-300 w-20 text-center">F</span> <span className="text-xs">看取 Reveal</span></div>
-                  <div className="flex items-center gap-3"><span className="border border-gray-600 px-2 py-1 rounded text-gray-300 w-20 text-center">SHIFT</span> <span className="text-xs">手電筒 Flashlight</span></div>
-                  <div className="flex items-center gap-3"><span className="border border-gray-600 px-2 py-1 rounded text-gray-300 w-20 text-center">E</span> <span className="text-xs">互動 Interact</span></div>
-              </div>
-
-              <button 
-                onClick={() => setPlayer(p => ({...p, x: 250}))}
-                className="px-10 py-4 border border-red-800 hover:bg-red-900/20 hover:border-red-500 transition-all text-red-500 mt-8 relative z-10 tracking-[0.2em]"
+               <button 
+                onClick={() => setIntroStep(1)} 
+                className="px-10 py-4 border border-red-800 hover:bg-red-900/20 hover:border-red-500 transition-all text-red-500 mt-8 relative z-10 tracking-[0.2em] cursor-pointer"
               >
                   開始旅程 START
               </button>
@@ -378,7 +462,7 @@ export default function App() {
             player={player}
             boss={boss}
             isRevealing={isRevealing}
-            isFlashlightOn={isFlashlightOn}
+            isFlashlightOn={player.flashlightOn}
             isCorrupted={gameState === GameState.CORRUPTED || gameState === GameState.BOSS_FIGHT}
             isDistorting={isDistorting}
             thought={thought}
@@ -387,14 +471,18 @@ export default function App() {
             isDoorLocked={isDoorLocked}
         />
 
-        <HUD 
-            roomName={ROOMS[player.room].name}
-            isRevealing={isRevealing}
-            isFlashlightOn={isFlashlightOn}
-            inventory={player.inventory}
-            boss={boss}
-            objective={getObjective()}
-        />
+        {introStep >= 3 && (
+            <HUD 
+                roomName={ROOMS[player.room].name}
+                isRevealing={isRevealing}
+                isFlashlightOn={player.flashlightOn}
+                inventory={player.inventory}
+                boss={boss}
+                objective={getObjective()}
+                battery={player.battery}
+                stamina={player.stamina}
+            />
+        )}
 
         {dialogue && (
             <DialogueBox 
