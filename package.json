@@ -1,0 +1,15 @@
+{
+  "name": "old-friends-dream-demo",
+  "version": "1.0.0",
+  "description": "A 2D psychological horror puzzle game: The Old Friend's Dream",
+  "main": "index.tsx",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "lucide-react": "^0.263.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build"
+  }
+}
