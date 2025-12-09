@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Skull, Heart } from 'lucide-react';
 import { GameState, RoomId, PlayerState, BossState } from './types';
@@ -16,7 +17,7 @@ export default function App() {
     inventory: [],
     health: 100,
     sanity: 100,
-    flashlightOn: true, // Modified: Flashlight on by default
+    flashlightOn: true, // Always on (Standard Mode)
     battery: MAX_BATTERY,
     stamina: MAX_STAMINA
   });
@@ -36,7 +37,10 @@ export default function App() {
   // Cutscene & Camera State
   const [isCutscene, setIsCutscene] = useState(false);
   const [cameraOverride, setCameraOverride] = useState<number | null>(null);
-  const [introStep, setIntroStep] = useState(0); // 0: Start Screen, 1: Wait, 2: Boy Runs, 3: Player Control
+  const [introStep, setIntroStep] = useState(0); 
+  
+  // Mechanics State
+  const [isRevealing, setIsRevealing] = useState(false); // Q Toggle
   
   // Floating thought bubble state
   const [thought, setThought] = useState<string | null>(null);
@@ -50,7 +54,7 @@ export default function App() {
   const keys = useInput();
   
   // Derived Inputs
-  const isRevealing = keys.current.has('q'); 
+  const isHighBeam = keys.current.has(' '); // Spacebar to charge/high beam
   const isSprinting = keys.current.has('shift'); 
   const isMoving = keys.current.has('w') || keys.current.has('a') || keys.current.has('s') || keys.current.has('d') ||
                    keys.current.has('arrowup') || keys.current.has('arrowleft') || keys.current.has('arrowdown') || keys.current.has('arrowright');
@@ -71,7 +75,7 @@ export default function App() {
   // --- HELPER: OBJECTIVE TEXT ---
   const getObjective = () => {
     if (gameState === GameState.INTRO) return "跟隨人影進入校園";
-    if (gameState === GameState.BOSS_FIGHT) return "擊敗心中的夢魘！(手電筒)";
+    if (gameState === GameState.BOSS_FIGHT) return "按住空白鍵使用強力手電筒對抗夢魘！";
     if (gameState === GameState.ENDING_A || gameState === GameState.ENDING_B) return "遊戲結束";
     
     const invCount = player.inventory.length;
@@ -122,16 +126,16 @@ export default function App() {
             if (!panningBack) {
                 // Pan To Stage
                 panProgress += 10;
-                if (panProgress >= 300) { 
+                if (panProgress >= 450) {  // Panned further since room is wider
                     waiting = true;
-                    setCameraOverride(300);
+                    setCameraOverride(450);
                     // Show a thought at the stage
                     setTimeout(() => {
-                         showThought("那是什麼...？");
+                         showThought("手電筒...照到了什麼東西？");
                          setTimeout(() => {
                             waiting = false;
                             panningBack = true;
-                         }, 1500);
+                         }, 2000);
                     }, 500);
                 } else {
                     setCameraOverride(panProgress);
@@ -146,10 +150,11 @@ export default function App() {
                         setDialogue([
                             "那孩子... 跑到舞台上了？",
                             "（舞台中間的紅布幕後，隱約有個人影。）",
+                            "（空氣中瀰漫著一股腐敗的氣味，混合著老舊木頭的霉味。）",
                             "（他看起來... 被荊棘死死纏住了。）",
-                            "我要過去看看。",
-                            "（但其他的門似乎被黑色的藤蔓封鎖了...）",
-                            "只能先從左側走廊開始調查了。"
+                            "我得過去看看，但其他的門似乎被黑色的藤蔓封鎖了。",
+                            "（手裡的舊手電筒光線微弱，只能勉強照亮前方。）",
+                            "先從左側走廊開始調查吧。"
                         ]);
                     }, 300);
                 } else {
@@ -185,8 +190,9 @@ export default function App() {
                      setIntroStep(3);
                      setDialogue([
                          "等等！那是... 家豪？",
-                         "這麼晚了，他怎麼會跑進已經廢棄的學校？",
-                         "我得跟上去看看。"
+                         "（你感覺心臟漏了一拍。那是二十年前失蹤的兒時玩伴。）",
+                         "（為什麼他會出現在這裡？為什麼還穿著當年的制服？）",
+                         "我得跟上去確認一下。"
                      ]);
                  }
              }
@@ -201,14 +207,10 @@ export default function App() {
     setPlayer(prev => {
         let newBattery = prev.battery;
         let newStamina = prev.stamina;
-        let newFlashlightOn = prev.flashlightOn;
 
-        // Battery
-        if (newFlashlightOn) {
+        // Battery Logic: Only High Beam drains battery
+        if (isHighBeam) {
             newBattery = Math.max(0, prev.battery - BATTERY_DRAIN_RATE);
-            if (newBattery <= 0) {
-                newFlashlightOn = false; // Force off
-            }
         } else {
             newBattery = Math.min(MAX_BATTERY, prev.battery + BATTERY_RECHARGE_RATE);
         }
@@ -260,17 +262,17 @@ export default function App() {
             y: nextY, 
             facingRight: nextFacing,
             battery: newBattery,
-            stamina: newStamina,
-            flashlightOn: newFlashlightOn
+            stamina: newStamina
         };
     });
 
     // -- Boss Logic (Delegated) --
     if (gameState === GameState.BOSS_FIGHT && boss.active && boss.health > 0) {
-        setBoss(prev => updateBossLogic(prev, player, player.flashlightOn, isRevealing, setGameState));
+        // Boss takes damage/stun only if High Beam is active
+        setBoss(prev => updateBossLogic(prev, player, isHighBeam && player.battery > 0, isRevealing, setGameState));
     }
 
-  }, [gameState, dialogue, boss.active, boss.health, introStep, isRevealing, player.flashlightOn, keys, isMoving, isSprinting, isCutscene, player.room]);
+  }, [gameState, dialogue, boss.active, boss.health, introStep, isRevealing, isHighBeam, keys, isMoving, isSprinting, isCutscene, player.room]);
 
   useGameLoop(update);
 
@@ -279,12 +281,8 @@ export default function App() {
       const handleKeyDown = (e: KeyboardEvent) => {
           const key = e.key.toLowerCase();
           
-          if (key === 'f') {
-             setPlayer(p => {
-                 // Cannot turn on if empty
-                 if (p.battery <= 0) return p;
-                 return { ...p, flashlightOn: !p.flashlightOn };
-             });
+          if (key === 'q') {
+             setIsRevealing(prev => !prev);
           }
           
           if (key === 'e') {
@@ -294,7 +292,6 @@ export default function App() {
       
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-      // Fixed: Added dialogueIndex to dependencies to prevent stale closures
   }, [player.inventory, player.battery, player.room, gameState, dialogue, boss, dialogueIndex]);
 
 
@@ -345,9 +342,9 @@ export default function App() {
         if (isDoorLocked(nearby.id)) {
             setDialogue([
                 "這扇門被黑色的藤蔓死死封住了。",
-                "必須先找到解開這個心結的關鍵碎片。"
+                "（那股熟悉的恐懼感... 我必須先解開家豪的心結才能通過。）"
             ]);
-            showThought("打不開...");
+            showThought("打不開... 就像當年那扇鎖住的門。");
             return;
         }
 
@@ -373,14 +370,15 @@ export default function App() {
                 setBoss(b => ({...b, active: true, x: 600, y: 350}));
                 setDialogue([
                     "你將畢業紀念冊與碎片放上舞台...",
-                    "九重葛開始瘋狂蠕動！",
+                    "九重葛開始瘋狂蠕動，四周的空間開始崩塌！",
                     "家豪發出痛苦的尖叫：「不要看我！不要看裡面！」",
-                    "【戰鬥開始】按住 Q 看取核心，並用 F 開啟手電筒照射來造成傷害！"
+                    "【戰鬥開始】按住空白鍵使用強力光束來對抗夢魘！使用 Q 切換視角尋找弱點！"
                 ]);
         } else {
              setDialogue([
                 "祭壇上需要獻上四個記憶碎片以及關鍵的「畢業紀念冊」。",
-                "當一切準備就緒，才能喚醒真正的他。"
+                "（這些碎片... 承載著他生前所有的痛苦。）",
+                "（只有拼湊出完整的真相，才能喚醒真正的他。）"
              ]);
         }
     }
@@ -464,7 +462,7 @@ export default function App() {
                 player={player}
                 boss={boss}
                 isRevealing={isRevealing}
-                isFlashlightOn={player.flashlightOn}
+                isHighBeam={isHighBeam}
                 isCorrupted={gameState === GameState.CORRUPTED || gameState === GameState.BOSS_FIGHT}
                 isDistorting={isDistorting}
                 thought={thought}
@@ -477,7 +475,7 @@ export default function App() {
                 <HUD 
                     roomName={ROOMS[player.room].name}
                     isRevealing={isRevealing}
-                    isFlashlightOn={player.flashlightOn}
+                    isHighBeam={isHighBeam}
                     inventory={player.inventory}
                     boss={boss}
                     objective={getObjective()}

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Book, Trophy, Puzzle, Circle, FileText, ChevronDown, User, MapPin, AlertTriangle, Battery, Zap } from 'lucide-react';
 import { BossState } from '../types';
@@ -40,7 +41,7 @@ const InventoryDisplay = ({ inventory }: { inventory: string[] }) => {
 export const HUD = ({ 
     roomName, 
     isRevealing, 
-    isFlashlightOn, 
+    isHighBeam, 
     inventory, 
     boss, 
     objective,
@@ -49,7 +50,7 @@ export const HUD = ({
 }: { 
     roomName: string, 
     isRevealing: boolean, 
-    isFlashlightOn: boolean, 
+    isHighBeam: boolean, 
     inventory: string[], 
     boss: BossState, 
     objective: string,
@@ -107,11 +108,11 @@ export const HUD = ({
             <div className="absolute top-6 right-6 flex flex-col items-end gap-2 z-50 select-none">
                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isRevealing ? "bg-red-950/80 border-red-500 text-red-100 shadow-[0_0_15px_red]" : "bg-black/40 border-white/10 text-white/40"}`}>
                     <span className="text-[10px] font-bold">Q</span>
-                    <span className="text-xs">Reveal</span>
+                    <span className="text-xs">Toggle Reveal</span>
                 </div>
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isFlashlightOn ? "bg-yellow-950/80 border-yellow-500 text-yellow-100 shadow-[0_0_15px_yellow]" : "bg-black/40 border-white/10 text-white/40"}`}>
-                    <span className="text-[10px] font-bold">F</span>
-                    <span className="text-xs">Light</span>
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isHighBeam ? "bg-yellow-950/80 border-yellow-500 text-yellow-100 shadow-[0_0_15px_yellow]" : "bg-black/40 border-white/10 text-white/40"}`}>
+                    <span className="text-[10px] font-bold">SPACE</span>
+                    <span className="text-xs">High Beam (Hold)</span>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border bg-black/40 border-white/10 text-white/40">
                     <span className="text-[10px] font-bold">SHIFT</span>

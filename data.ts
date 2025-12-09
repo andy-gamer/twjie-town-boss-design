@@ -1,3 +1,4 @@
+
 import { RoomId, RoomData, Entity } from './types';
 
 // --- CONFIG ---
@@ -8,8 +9,8 @@ export const SCREEN_WIDTH = 800;
 export const SCREEN_HEIGHT = 600;
 
 export const MAX_BATTERY = 100;
-export const BATTERY_DRAIN_RATE = 0.2; // Per frame
-export const BATTERY_RECHARGE_RATE = 0.1; // Per frame
+export const BATTERY_DRAIN_RATE = 0.5; // High beam drains faster
+export const BATTERY_RECHARGE_RATE = 0.2; // Recharges when not using high beam
 
 export const MAX_STAMINA = 100;
 export const STAMINA_DRAIN_RATE = 0.8;
@@ -63,7 +64,7 @@ export const ROOMS: Record<RoomId, RoomData> = {
   [RoomId.LOBBY]: {
     id: RoomId.LOBBY,
     name: "大禮堂",
-    width: 1400, 
+    width: 1600, // Increased width for better camera movement
     height: 600,
     backgroundClass: "bg-stone-900", 
     entities: [
@@ -82,37 +83,46 @@ export const ROOMS: Record<RoomId, RoomData> = {
         label: '', color: '#7f1d1d' 
       },
       {
-        id: 'curtain_right', type: 'decoration', x: 880, y: 100, w: 120, h: 500,
+        id: 'curtain_right', type: 'decoration', x: 950, y: 100, w: 120, h: 500,
         interactable: false, visibleInNormal: true, visibleInReveal: true,
         label: '', color: '#7f1d1d' 
       },
       {
-        id: 'lobby_sign', type: 'decoration', x: 650, y: 150, w: 100, h: 50,
+        id: 'lobby_sign', type: 'decoration', x: 720, y: 150, w: 100, h: 50,
         interactable: true, visibleInNormal: true, visibleInReveal: true,
         label: '校訓',
-        dialogue: ["「誠實、正直、服從」...", "「服從」兩個字被刻意刮花了。"]
+        dialogue: [
+          "牆上掛著斑駁的校訓：「誠實、正直、服從」。", 
+          "那個年代的學校總是這樣，壓抑得讓人喘不過氣。",
+          "「服從」這兩個字... 上面似乎有深深的刮痕，像是有人用指甲絕望地摳抓過。"
+        ]
       },
       {
-        id: 'jiahao_bound', type: 'npc', x: 650, y: 320, w: 100, h: 180,
+        id: 'jiahao_bound', type: 'npc', x: 680, y: 320, w: 100, h: 180,
         interactable: true, visibleInNormal: true, visibleInReveal: true,
         color: '#a21caf', 
         label: '被束縛的孩子',
         icon: 'flower',
-        dialogue: ["（他被黑色的藤蔓死死纏住。）", "（藤蔓延伸到了學校的各個角落...）", "（我必須找到那些源頭，斬斷這些束縛。）"]
+        dialogue: [
+          "（舞台中央，一個瘦小的身影被黑色的荊棘死死纏繞。）", 
+          "（那些荊棘像是有生命一樣，隨著他的呼吸微微搏動，深深刺入他的皮膚。）", 
+          "「家豪...？」你試著呼喚，但他緊閉雙眼，表情痛苦扭曲。",
+          "（藤蔓延伸到了學校的各個角落... 必須找到源頭斬斷它們。）"
+        ]
       },
       {
-        id: 'boss_altar', type: 'item', x: 600, y: 500, w: 200, h: 30,
+        id: 'boss_altar', type: 'item', x: 640, y: 500, w: 200, h: 30,
         interactable: true, visibleInNormal: true, visibleInReveal: true,
         color: '#581c87',
         label: '獻上記憶碎片',
         icon: 'altar'
       },
       
-      createProp('flower_pot_broken', 900, 480, 30, 30, '打破的花盆', '#b45309'),
+      createProp('flower_pot_broken', 1000, 480, 30, 30, '打破的花盆', '#b45309'),
       
       // Right Side
-      createDoor('stairs_up_r', 1100, 360, RoomId.SEATS_RIGHT, 650, '右側樓梯 (2F)'),
-      createDoor('to_hall_right', 1250, 360, RoomId.HALL_RIGHT, 100, '右側走廊'),
+      createDoor('stairs_up_r', 1250, 360, RoomId.SEATS_RIGHT, 650, '右側樓梯 (2F)'),
+      createDoor('to_hall_right', 1450, 360, RoomId.HALL_RIGHT, 100, '右側走廊'),
     ]
   },
 
@@ -136,10 +146,11 @@ export const ROOMS: Record<RoomId, RoomData> = {
          color: '#fbbf24', label: '畢業紀念冊',
          icon: 'book',
          dialogue: [
-             "（一本沾滿灰塵的畢業紀念冊。）",
-             "（你翻開它... 所有的臉都被塗黑了。）",
-             "（等等，這張照片... 是你和家豪？）",
-             "（頭好痛——畫面開始閃爍！）"
+             "（控制台上放著一本厚重的畢業紀念冊，封面滿是灰塵。）",
+             "（你顫抖著翻開它... 裡面所有學生的臉都被人用黑筆塗爛了。）",
+             "（唯獨這一頁... 是你和家豪的合照。）",
+             "（你的臉是清晰的，但家豪的臉上被畫了一個巨大的紅色叉號。）",
+             "（頭好痛——記憶開始瘋狂湧入！畫面開始閃爍！）"
          ]
        }
     ]
@@ -174,7 +185,12 @@ export const ROOMS: Record<RoomId, RoomData> = {
         id: ITEMS.SHARD_TROPHY, type: 'item', x: 380, y: 480, w: 30, h: 30,
         interactable: true, visibleInNormal: false, visibleInReveal: true,
         color: '#fbbf24', label: '碎片', icon: 'shard',
-        dialogue: ["撿到了「破掉的獎狀碎片」。", "（上面還沾著乾掉的膠水，像是曾有人拼命想黏回去。）"]
+        dialogue: [
+          "撿到了「破掉的獎狀碎片」。", 
+          "（這是全校第一名的獎狀，屬於哥哥的榮耀。）",
+          "（邊緣有乾掉的膠水痕跡... 是家豪曾經試圖修復它嗎？）",
+          "（即便他再怎麼努力，父親的眼裡永遠只有哥哥。）"
+        ]
       }
     ]
   },
@@ -187,7 +203,7 @@ export const ROOMS: Record<RoomId, RoomData> = {
     height: 600,
     backgroundClass: "bg-blue-950", 
     entities: [
-      createDoor('to_lobby_sr', 700, 360, RoomId.LOBBY, 1100, '下樓'),
+      createDoor('to_lobby_sr', 700, 360, RoomId.LOBBY, 1250, '下樓'),
       createDoor('to_sound_sr', 50, 360, RoomId.SOUND_ROOM, 600, '音控室'),
       
       createProp('toy_box', 300, 450, 60, 40, '玩具箱', '#1e3a8a'),
@@ -208,7 +224,12 @@ export const ROOMS: Record<RoomId, RoomData> = {
         id: ITEMS.SHARD_TOY, type: 'item', x: 450, y: 460, w: 25, h: 25,
         interactable: true, visibleInNormal: false, visibleInReveal: true,
         color: '#fca5a5', label: '玩具碎片', icon: 'shard',
-        dialogue: ["撿到了「家豪的玩具碎片」。", "（這是他最喜歡的超人，但頭不見了。）"]
+        dialogue: [
+          "撿到了「家豪的玩具碎片」。", 
+          "（這是他最喜歡的超人公仔... 頭已經不見了。）",
+          "（「男孩子哭什麼哭！」父親的咆哮聲彷彿還在耳邊。）",
+          "（從那之後，家豪學會了在衣櫃裡無聲地流淚。）"
+        ]
       }
     ]
   },
@@ -241,7 +262,12 @@ export const ROOMS: Record<RoomId, RoomData> = {
         id: ITEMS.BELT_BUCKLE, type: 'item', x: 320, y: 480, w: 25, h: 25,
         interactable: true, visibleInNormal: true, visibleInReveal: true,
         color: '#d4d4d8', label: '皮帶扣', icon: 'shard',
-        dialogue: ["撿到了「皮帶扣環」。", "（沉甸甸的金屬，冰冷得讓人不寒而慄。）"]
+        dialogue: [
+          "撿到了「皮帶扣環」。", 
+          "（沉甸甸的金屬，冰冷得讓人不寒而慄。）",
+          "（每次聽到這個扣環解開的聲音，家豪就會開始發抖。）",
+          "（為什麼... 為什麼那時候我沒有站出來阻止？）"
+        ]
       }
     ]
   },
@@ -254,7 +280,7 @@ export const ROOMS: Record<RoomId, RoomData> = {
     height: 600,
     backgroundClass: "bg-emerald-950",
     entities: [
-      createDoor('back_lobby_hr', 50, 360, RoomId.LOBBY, 1250, '大廳'),
+      createDoor('back_lobby_hr', 50, 360, RoomId.LOBBY, 1450, '大廳'),
       
       createProp('bucket', 300, 460, 30, 30, '水桶', '#3b82f6'),
       createProp('mop', 340, 350, 10, 140, '拖把', '#d4d4d4'),
@@ -274,7 +300,12 @@ export const ROOMS: Record<RoomId, RoomData> = {
         id: ITEMS.DIARY_PAGE, type: 'item', x: 600, y: 480, w: 25, h: 25,
         interactable: true, visibleInNormal: false, visibleInReveal: true,
         color: '#fef08a', label: '日記頁', icon: 'page',
-        dialogue: ["撿到了「家豪的日記頁」。", "（字跡歪歪斜斜：哥哥什麼都好，我只會惹爸爸生氣...）"]
+        dialogue: [
+          "撿到了「家豪的日記頁」。", 
+          "（字跡歪歪斜斜：『打掃用具櫃很窄，但是很安全。』）",
+          "（『只要躲在這裡，爸爸就找不到我了。哥哥什麼都好，我只會惹爸爸生氣...』）",
+          "（『如果我消失了，大家會不會比較快樂？』）"
+        ]
       }
     ]
   }

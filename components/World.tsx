@@ -11,7 +11,7 @@ export const WorldRenderer = ({
     player, 
     boss, 
     isRevealing, 
-    isFlashlightOn,
+    isHighBeam,
     isCorrupted,
     isDistorting,
     thought,
@@ -23,7 +23,7 @@ export const WorldRenderer = ({
     player: PlayerState, 
     boss: BossState, 
     isRevealing: boolean, 
-    isFlashlightOn: boolean,
+    isHighBeam: boolean,
     isCorrupted: boolean,
     isDistorting: boolean,
     thought: string | null,
@@ -41,13 +41,23 @@ export const WorldRenderer = ({
     const playerScreenX = player.x - cameraX + player.w / 2;
     const playerScreenY = player.y + player.h / 3; 
 
-    // Proper CSS syntax for radial-gradient size/shape
-    // Flashlight ON: Large radius, soft falloff
-    // Flashlight OFF: Small radius (150px), hard darkness but slightly transparent outer
-    const maskSize = isFlashlightOn ? '600px' : '150px'; 
-    const maskColor = isFlashlightOn 
-        ? 'transparent 5%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.95) 70%' 
-        : 'transparent 10%, rgba(0,0,0,0.9) 85%';
+    // Light Logic:
+    // Standard: Always on, medium visibility radius, soft edges.
+    // High Beam: Larger radius, clearer center, pushes back darkness significantly.
+    // Empty Battery (if implementing logic later): Small radius.
+    
+    // Default is "Standard Flashlight" (User Requirement 1)
+    let maskSize = '300px'; 
+    let maskColor = 'transparent 5%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.98) 70%';
+    
+    if (isHighBeam && player.battery > 0) {
+        // High Power Mode (Spacebar)
+        maskSize = '600px';
+        maskColor = 'transparent 10%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.98) 80%';
+    } else if (player.battery <= 0 && isHighBeam) {
+        // Trying to use high beam but empty
+        maskSize = '250px'; // Flicker/Weak
+    }
 
     return (
         <div 
@@ -71,7 +81,8 @@ export const WorldRenderer = ({
                     ))}
 
                     <BossView boss={boss} isRevealing={isRevealing} />
-                    <PlayerView player={player} isFlashlightOn={isFlashlightOn} isMoving={isMoving} />
+                    {/* Pass isHighBeam as isFlashlightOn to player for beam visual */}
+                    <PlayerView player={player} isFlashlightOn={isHighBeam && player.battery > 0} isMoving={isMoving} />
                     <ThoughtBubble text={thought} x={player.x} y={player.y} />
                 </div>
             </div>
@@ -79,7 +90,7 @@ export const WorldRenderer = ({
             {/* Darkness Overlay (Fog of War) */}
             {!isRevealing && (
                 <div 
-                    className="absolute inset-0 z-40 pointer-events-none transition-all duration-500 ease-in-out"
+                    className="absolute inset-0 z-40 pointer-events-none transition-all duration-200 ease-out"
                     style={{
                         background: `radial-gradient(circle ${maskSize} at ${playerScreenX}px ${playerScreenY}px, ${maskColor})`
                     }}
