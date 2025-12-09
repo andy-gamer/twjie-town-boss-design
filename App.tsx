@@ -1,9 +1,11 @@
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Skull, Heart } from 'lucide-react';
 import { GameState, RoomId, PlayerState, BossState } from './types';
-import { ROOMS, ITEMS, PLAYER_SPEED, BOSS_SPEED, SCREEN_WIDTH } from './data';
+import { ROOMS, ITEMS, PLAYER_SPEED, SCREEN_WIDTH } from './data';
 import { useInput, useGameLoop } from './hooks';
 import { WorldRenderer, HUD, DialogueBox } from './components';
+import { updateBossLogic } from './bossAI';
 
 export default function App() {
   // --- STATE ---
@@ -52,18 +54,10 @@ export default function App() {
                    keys.current.has('arrowup') || keys.current.has('arrowleft') || keys.current.has('arrowdown') || keys.current.has('arrowright');
 
   // --- PROGRESSION LOGIC ---
-  // Returns true if the door is locked by vines
   const isDoorLocked = useCallback((doorId: string) => {
-      const invCount = player.inventory.length; // Number of key items collected (excluding yearbook if handled separately)
+      const invCount = player.inventory.length; 
       
-      // Progression:
-      // 0 Items: Only Left Hall (Father/Belt) is open.
-      // 1 Item (Belt): Unlocks Right Hall (Hiding/Diary).
-      // 2 Items (Diary): Unlocks Stairs Left (Brother/Trophy).
-      // 3 Items (Trophy): Unlocks Stairs Right (Crying/Toy).
-      // 4 Items (Toy): Unlocks Sound Room (Yearbook).
-
-      if (doorId === 'to_hall_left') return false; // Always open first
+      if (doorId === 'to_hall_left') return false; 
       if (doorId === 'to_hall_right') return invCount < 1;
       if (doorId === 'stairs_up_l') return invCount < 2;
       if (doorId === 'stairs_up_r') return invCount < 3;
@@ -78,7 +72,6 @@ export default function App() {
     if (gameState === GameState.BOSS_FIGHT) return "擊敗心中的夢魘！(Shift手電筒)";
     if (gameState === GameState.ENDING_A || gameState === GameState.ENDING_B) return "遊戲結束";
     
-    // Exploration Progression Hints
     const invCount = player.inventory.length;
     const hasYearbook = player.inventory.includes(ITEMS.YEARBOOK);
 
@@ -90,8 +83,6 @@ export default function App() {
     return "前往一樓左側走廊探索";
   };
 
-  // --- LOGIC ---
-  
   const showThought = useCallback((text: string) => {
       if (thoughtTimeoutRef.current) clearTimeout(thoughtTimeoutRef.current);
       setThought(text);
@@ -104,19 +95,16 @@ export default function App() {
     if (player.room === RoomId.LOBBY && !processedTriggers.current.has(triggerId)) {
         processedTriggers.current.add(triggerId);
         
-        // Start Cutscene Sequence
         setIsCutscene(true);
-        setCameraOverride(0); // Start camera at door
+        setCameraOverride(0);
 
-        // 1. Pan Camera to Stage (Center ~ 600)
         let panProgress = 0;
         const panInterval = setInterval(() => {
             panProgress += 10;
-            if (panProgress >= 250) { // Target camera X
+            if (panProgress >= 250) { 
                 clearInterval(panInterval);
-                setCameraOverride(250); // Hold at stage
+                setCameraOverride(250); 
                 
-                // 2. Trigger Dialogue
                 setTimeout(() => {
                      setDialogue([
                          "那孩子... 跑到舞台上了？",
@@ -133,91 +121,25 @@ export default function App() {
     }
   }, [player.room]);
 
-  // End Cutscene when dialogue closes
   useEffect(() => {
       const triggerId = 'lobby_cutscene_initial';
       if (processedTriggers.current.has(triggerId) && isCutscene && !dialogue) {
           setIsCutscene(false);
-          setCameraOverride(null); // Release camera
+          setCameraOverride(null); 
       }
   }, [dialogue, isCutscene]);
 
 
-  const updateBoss = useCallback((prevBoss: BossState, currentPlayer: PlayerState) => {
-    let nextBoss = { ...prevBoss };
-
-    if (nextBoss.stunned) {
-        if (nextBoss.stunTimer > 0) {
-            nextBoss.stunTimer -= 1;
-        } else {
-            nextBoss.stunned = false;
-        }
-        return nextBoss;
-    }
-
-    let nextX = nextBoss.x;
-    let nextY = nextBoss.y;
-    
-    const dx = currentPlayer.x - nextBoss.x;
-    const dy = currentPlayer.y - nextBoss.y;
-    const dist = Math.sqrt(dx*dx + dy*dy);
-
-    // Chase
-    if (dist > 50) {
-        nextX += (dx / dist) * BOSS_SPEED;
-        nextY += (dy / dist) * BOSS_SPEED;
-    }
-
-    // Flashlight Impact
-    if (isFlashlightOn) {
-        const playerFacingBoss = (currentPlayer.x < nextBoss.x && currentPlayer.facingRight) || (currentPlayer.x > nextBoss.x && !currentPlayer.facingRight);
-        const inRange = dist < 300;
-        if (playerFacingBoss && inRange) {
-             nextX -= (dx / dist) * BOSS_SPEED * 1.5; // Pushback
-        }
-    }
-
-    // Reveal Damage Mechanic
-    let newHealth = nextBoss.health;
-    let newStunned = nextBoss.stunned;
-    
-    // Player needs to look at boss in reveal mode to damage core
-    if (isRevealing) {
-         const playerFacingBoss = (currentPlayer.x < nextBoss.x && currentPlayer.facingRight) || (currentPlayer.x > nextBoss.x && !currentPlayer.facingRight);
-         if (playerFacingBoss && dist < 400) {
-             newHealth -= 0.3; // DPS
-         }
-    }
-
-    // Flashlight Stuns if very close
-    if (isFlashlightOn && dist < 100 && !nextBoss.stunned && Math.random() < 0.02) {
-        newStunned = true;
-        nextBoss.stunTimer = 120;
-    }
-
-    if (newHealth <= 0) {
-        setGameState(GameState.ENDING_A);
-    }
-
-    nextBoss.x = nextX;
-    nextBoss.y = nextY;
-    nextBoss.health = newHealth;
-    nextBoss.stunned = newStunned;
-
-    return nextBoss;
-  }, [isRevealing, isFlashlightOn]);
-
   const update = useCallback((time: number) => {
-    if (dialogue) return; // Pause updates during dialogue
-    if (isCutscene) return; // Pause inputs during cutscene
+    if (dialogue) return; 
+    if (isCutscene) return; 
 
-    // -- Tutorial Progress --
-    const hasMoved = isMoving;
-    if (gameState === GameState.INTRO && tutorialStep === 0 && hasMoved) setTutorialStep(1);
+    // -- Tutorial --
+    if (gameState === GameState.INTRO && tutorialStep === 0 && isMoving) setTutorialStep(1);
     if (tutorialStep === 1 && isRevealing) setTutorialStep(2);
     if (tutorialStep === 2 && isFlashlightOn) setTutorialStep(3);
 
-    // -- Intro Shadow Boy Animation --
+    // -- Intro Shadow Boy --
     if (player.room === RoomId.BUS_STOP) {
         const shadowBoy = ROOMS[RoomId.BUS_STOP].entities.find(e => e.id === 'shadow_boy_intro');
         if (shadowBoy) {
@@ -253,7 +175,6 @@ export default function App() {
 
       const room = ROOMS[prev.room];
       
-      // Bounds
       if (nextX < 0) nextX = 0;
       if (nextX > room.width - prev.w) nextX = room.width - prev.w;
       
@@ -265,16 +186,16 @@ export default function App() {
       return { ...prev, x: nextX, y: nextY, facingRight: nextFacing };
     });
 
-    // -- Boss Logic --
+    // -- Boss Logic (Delegated) --
     if (gameState === GameState.BOSS_FIGHT && boss.active && boss.health > 0) {
-        setBoss(prev => updateBoss(prev, player));
+        setBoss(prev => updateBossLogic(prev, player, isFlashlightOn, isRevealing, setGameState));
     }
 
-  }, [gameState, dialogue, boss.active, boss.health, tutorialStep, isRevealing, isFlashlightOn, player, updateBoss, keys, showThought, isMoving, isCutscene]);
+  }, [gameState, dialogue, boss.active, boss.health, tutorialStep, isRevealing, isFlashlightOn, player, keys, isMoving, isCutscene]);
 
   useGameLoop(update);
 
-  // --- INTERACTION HANDLER ---
+  // --- INTERACTION ---
   const handleInteraction = () => {
     if (dialogue) {
         if (dialogueIndex < dialogue.length - 1) {
@@ -283,7 +204,6 @@ export default function App() {
             setDialogue(null);
             setDialogueIndex(0);
             
-            // SPECIAL TRIGGER: YEARBOOK PICKUP
             if (player.inventory.includes(ITEMS.YEARBOOK) && (gameState === GameState.INTRO || gameState === GameState.EXPLORATION)) {
                 setIsDistorting(true);
                 showThought("不... 頭好痛...");
@@ -297,8 +217,6 @@ export default function App() {
     }
 
     const room = ROOMS[player.room];
-    
-    // Find interaction candidates
     const candidates = room.entities.filter(e => {
         if (e.type === 'item' && player.inventory.includes(e.id)) return false;
         const isVisible = (e.visibleInNormal && !isRevealing) || 
@@ -321,7 +239,6 @@ export default function App() {
 
     const nearby = candidates[0];
 
-    // Handle Door Interactions (with Locking Logic)
     if (nearby.type === 'door' && nearby.targetRoom) {
         if (isDoorLocked(nearby.id)) {
             setDialogue([
@@ -369,7 +286,6 @@ export default function App() {
         setDialogue(nearby.dialogue);
     }
     
-    // Secret Boss Interaction
     if (gameState === GameState.BOSS_FIGHT && nearby.id === 'jiahao_bound' && boss.health < 40) {
             setDialogue([
                 "家豪... 我知道你很痛苦。",
@@ -380,7 +296,6 @@ export default function App() {
     }
   };
 
-  // Keyboard Event for 'E' (Interaction)
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key.toLowerCase() === 'e') handleInteraction();
@@ -389,10 +304,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [player, gameState, dialogue, dialogueIndex, boss, isDoorLocked]);
 
-
-  // --- RENDERING ---
-
-  // Intro Screen
+  // --- RENDERING SCENES ---
   if (gameState === GameState.INTRO && player.room === RoomId.BUS_STOP && player.x < 200) {
       return (
           <div className="w-screen h-screen bg-black flex flex-col items-center justify-center text-white space-y-8 z-50 overflow-hidden relative">
@@ -419,7 +331,6 @@ export default function App() {
       );
   }
 
-  // Endings
   if (gameState === GameState.ENDING_A) {
       return (
           <div className="w-screen h-screen bg-black flex flex-col items-center justify-center text-red-500 p-10 text-center relative overflow-hidden">
@@ -452,7 +363,7 @@ export default function App() {
       );
   }
 
-  // Camera Logic (Calculated or Overridden by Cutscene)
+  // Camera Logic
   const roomWidth = ROOMS[player.room].width;
   const calculatedCameraX = Math.max(0, Math.min(player.x - SCREEN_WIDTH/2, roomWidth - SCREEN_WIDTH));
   const finalCameraX = cameraOverride !== null ? cameraOverride : calculatedCameraX;
@@ -473,7 +384,7 @@ export default function App() {
             thought={thought}
             isMoving={isMoving}
             cameraX={finalCameraX}
-            isDoorLocked={isDoorLocked} // Pass locking logic to renderer
+            isDoorLocked={isDoorLocked}
         />
 
         <HUD 
