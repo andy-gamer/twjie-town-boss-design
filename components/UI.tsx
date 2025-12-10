@@ -1,5 +1,6 @@
-import React from 'react';
-import { Book, Trophy, Puzzle, Circle, FileText, ChevronDown, User, MapPin, AlertTriangle, Battery, Zap, Hammer, EyeOff } from 'lucide-react';
+
+import React, { useState } from 'react';
+import { Book, Trophy, Puzzle, Circle, FileText, ChevronDown, User, MapPin, AlertTriangle, Battery, Zap, Hammer, EyeOff, Heart, Info, ChevronRight, Minimize2, Maximize2 } from 'lucide-react';
 import { BossState, PlayerState } from '../types';
 import { MAX_BATTERY, MAX_STAMINA } from '../data';
 
@@ -58,73 +59,104 @@ export const HUD = ({
     stamina: number,
     player: PlayerState
 }) => {
+    const [isGuideOpen, setIsGuideOpen] = useState(false); // Default closed
+
     return (
         <>
-            {/* Objective Banner */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center w-full pointer-events-none">
-                <div className="bg-gradient-to-r from-transparent via-black/80 to-transparent px-12 py-3 border-y border-red-900/30 text-red-100 font-serif tracking-[0.15em] shadow-[0_5px_20px_rgba(0,0,0,0.5)] text-center transform scale-105">
-                    <div className="text-[10px] text-red-500 uppercase tracking-widest font-bold mb-1 flex items-center justify-center gap-2">
-                        <AlertTriangle size={10} /> 當前目標 <AlertTriangle size={10} />
-                    </div>
-                    <span className="drop-shadow-[0_0_5px_rgba(255,0,0,0.5)] text-lg">{objective}</span>
+            {/* Objective Banner - Smaller */}
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center w-full pointer-events-none">
+                <div className="bg-black/40 backdrop-blur-sm px-8 py-1 border-b border-red-900/30 text-red-100 font-serif tracking-widest shadow-sm text-center">
+                    <span className="text-sm opacity-80">{objective}</span>
                 </div>
             </div>
 
-            {/* Stats Bars (Battery & Stamina) */}
-            <div className="absolute top-24 left-6 z-50 flex flex-col gap-2 pointer-events-none">
+            {/* Boss Hints Panel (Collapsible) */}
+            {boss.active && (
+                <div className="absolute top-16 right-0 z-50 pointer-events-auto flex items-start">
+                    <button 
+                        onClick={() => setIsGuideOpen(!isGuideOpen)}
+                        className="bg-black/60 text-purple-300 p-2 rounded-l-lg border-y border-l border-purple-500/30 hover:bg-purple-900/40 transition-colors"
+                        title="戰鬥指南"
+                    >
+                        {isGuideOpen ? <ChevronRight size={16} /> : <Info size={16} />}
+                    </button>
+                    
+                    {isGuideOpen && (
+                        <div className="bg-black/80 border-l border-b border-purple-500/30 p-3 rounded-bl-xl backdrop-blur-sm max-w-[200px] shadow-lg mr-6">
+                            <ul className="text-[10px] text-gray-300 space-y-2 leading-tight font-serif tracking-wide">
+                                <li className="flex gap-2 items-start">
+                                    <span className="text-red-500 font-bold">●</span>
+                                    <span>BOSS靠<strong>聽覺</strong>。蹲下(Shift)可潛行。</span>
+                                </li>
+                                <li className="flex gap-2 items-start">
+                                    <span className="text-yellow-400 font-bold">●</span>
+                                    <span><strong>光照</strong>(F)使其變慢，但會被發現。</span>
+                                </li>
+                                <li className="flex gap-2 items-start">
+                                    <span className="text-orange-400 font-bold">●</span>
+                                    <span><strong>強力光束</strong>(Space)造成傷害。</span>
+                                </li>
+                            </ul>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Stats Bars (Compact) */}
+            <div className="absolute top-16 left-6 z-50 flex flex-col gap-1 pointer-events-none opacity-80 hover:opacity-100 transition-opacity">
+                {/* Health */}
+                <div className="flex items-center gap-2">
+                    <Heart size={12} className={`text-red-500 ${player.health < 30 ? 'animate-bounce' : ''}`} fill="currentColor" />
+                    <div className="w-24 h-2 bg-gray-900 rounded-full overflow-hidden border border-red-900/30 relative">
+                        <div className="h-full bg-red-600 transition-all duration-300" style={{ width: `${player.health}%` }} />
+                    </div>
+                </div>
+
                 {/* Battery */}
                 <div className="flex items-center gap-2">
-                    <Battery size={16} className={`${battery < 20 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`} />
-                    <div className="w-32 h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-600">
-                        {/* Removed transition for instant updates */}
+                    <Battery size={12} className={`${battery < 20 ? 'text-red-500 animate-pulse' : 'text-yellow-400'}`} />
+                    <div className="w-24 h-1.5 bg-gray-800 rounded-full overflow-hidden border border-gray-600/50">
                         <div className="h-full bg-yellow-400" style={{ width: `${(battery / MAX_BATTERY) * 100}%` }} />
-                    </div>
-                    <span className="text-[10px] text-gray-500 font-mono">{Math.floor(battery)}%</span>
-                </div>
-                {/* Stamina */}
-                <div className="flex items-center gap-2">
-                    <Zap size={16} className="text-blue-400" />
-                    <div className="w-32 h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-600">
-                        <div className="h-full bg-blue-500 transition-all duration-100" style={{ width: `${(stamina / MAX_STAMINA) * 100}%` }} />
                     </div>
                 </div>
             </div>
 
             {/* Boss Health Bar */}
             {boss.active && boss.health > 0 && (
-                <div className="absolute top-28 left-1/2 -translate-x-1/2 w-[400px] h-4 bg-gray-900 border border-purple-900 rounded-full overflow-hidden z-50 shadow-2xl">
-                    <div className="h-full bg-gradient-to-r from-purple-800 to-purple-500 transition-all duration-300 relative" style={{ width: `${boss.health}%` }}>
-                        <div className="absolute inset-0 bg-white/20 animate-pulse" />
-                    </div>
-                    <div className="absolute top-5 left-0 w-full text-center text-xs text-purple-300 tracking-[0.2em]">弱點：強力光束 (Space)</div>
+                <div className="absolute top-24 left-1/2 -translate-x-1/2 w-[300px] h-3 bg-gray-900 border border-green-900 rounded-full overflow-hidden z-50 shadow-lg">
+                    <div className="h-full bg-gradient-to-r from-green-900 to-green-700 transition-all duration-300 relative" style={{ width: `${boss.health}%` }}></div>
                 </div>
             )}
 
             {/* Room Name */}
             <div className="absolute top-6 left-6 z-50 select-none">
-                <div className="text-white/40 text-xs uppercase tracking-widest mb-1">位置</div>
-                <div className="text-white font-serif text-2xl flex items-center gap-3 drop-shadow-md">
-                    <MapPin size={20} className="text-red-500/80" /> {roomName}
+                <div className="text-white/30 text-[10px] uppercase tracking-widest">位置</div>
+                <div className="text-white font-serif text-lg flex items-center gap-2 drop-shadow-md">
+                    <MapPin size={14} className="text-red-500/80" /> {roomName}
                 </div>
             </div>
             
-            {/* Controls Help */}
-            <div className="absolute top-6 right-6 flex flex-col items-end gap-2 z-50 select-none">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border bg-black/40 border-white/10 text-white/40">
-                    <span className="text-[10px] font-bold">E</span>
-                    <span className="text-xs">互動/進入</span>
+            {/* Controls Help (Updated) */}
+            <div className="absolute bottom-6 right-6 flex flex-col items-end gap-1.5 z-50 select-none opacity-70 hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-2 px-2 py-1 rounded border bg-black/40 border-white/10 text-white/40">
+                    <span className="text-[10px] font-bold">W/S</span>
+                    <span className="text-[10px]">調整燈光角度</span>
                 </div>
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${player.flashlightOn ? "bg-yellow-950/80 border-yellow-500 text-yellow-100" : "bg-black/40 border-white/10 text-white/40"}`}>
+                <div className={`flex items-center gap-2 px-2 py-1 rounded border transition-all ${player.flashlightOn ? "bg-yellow-950/40 border-yellow-500/50 text-yellow-100" : "bg-black/40 border-white/10 text-white/40"}`}>
                     <span className="text-[10px] font-bold">F</span>
-                    <span className="text-xs">手電筒</span>
+                    <span className="text-[10px]">手電筒</span>
                 </div>
-                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isHighBeam ? "bg-orange-900/80 border-orange-500 text-orange-100" : "bg-black/40 border-white/10 text-white/40"}`}>
-                    <span className="text-[10px] font-bold">SPACE</span>
-                    <span className="text-xs">強力光束 (長按)</span>
+                 <div className={`flex items-center gap-2 px-2 py-1 rounded border transition-all ${isHighBeam ? "bg-orange-900/40 border-orange-500/50 text-orange-100" : "bg-black/40 border-white/10 text-white/40"}`}>
+                    <span className="text-[10px] font-bold">Space</span>
+                    <span className="text-[10px]">強力光束</span>
                 </div>
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isRevealing ? "bg-purple-900/80 border-purple-500 text-purple-100" : "bg-black/40 border-white/10 text-white/40"}`}>
+                <div className={`flex items-center gap-2 px-2 py-1 rounded border transition-all ${player.isCrouching ? "bg-blue-900/40 border-blue-500/50 text-blue-100" : "bg-black/40 border-white/10 text-white/40"}`}>
+                    <span className="text-[10px] font-bold">Shift</span>
+                    <span className="text-[10px]">潛伏(蹲下)</span>
+                </div>
+                <div className={`flex items-center gap-2 px-2 py-1 rounded border transition-all ${isRevealing ? "bg-purple-900/40 border-purple-500/50 text-purple-100" : "bg-black/40 border-white/10 text-white/40"}`}>
                     <span className="text-[10px] font-bold">Q</span>
-                    <span className="text-xs">使用看取</span>
+                    <span className="text-[10px]">看取</span>
                 </div>
             </div>
 
@@ -133,7 +165,6 @@ export const HUD = ({
     );
 };
 
-// --- DIALOGUE ---
 export const DialogueBox = ({ text, position }: { text: string, position: {x: number, y: number} }) => (
     <div className="absolute z-[100] transition-all duration-75 ease-out pointer-events-none"
          style={{ left: position.x, top: position.y - 40, transform: 'translateX(-50%) translateY(-100%)' }}>
@@ -157,7 +188,6 @@ export const DialogueBox = ({ text, position }: { text: string, position: {x: nu
     </div>
 );
 
-// --- THOUGHT BUBBLE ---
 export const ThoughtBubble = ({ text, x, y }: { text: string | null, x: number, y: number }) => {
     if (!text) return null;
     return (

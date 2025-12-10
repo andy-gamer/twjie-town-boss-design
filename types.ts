@@ -71,17 +71,49 @@ export interface PlayerState {
   room: RoomId;
   x: number;
   y: number;
+  z: number; // Height (Jump)
+  vx: number; 
+  vy: number; 
+  vz: number; // Vertical Velocity
   w: number;
   h: number;
   facingRight: boolean;
+  aimAngle: number; // -45 to 45 degrees for flashlight
   inventory: string[];
   health: number;
   sanity: number;
   
-  // New Mechanics
+  // Mechanics
   flashlightOn: boolean; // Main toggle (F)
+  isCrouching: boolean; // Stealth Mode (Shift)
   battery: number;
   stamina: number;
+}
+
+/**
+ * Boss AI State Definitions:
+ * 
+ * - IDLE: The boss is dormant or waiting for a trigger.
+ * - WANDER: The boss moves aimlessly within the area. Occurs when player is not detected. 
+ *           Typical duration: 60-180 frames.
+ * - CHASE: The boss has detected the player and is actively moving towards them. 
+ *          This persists until the player breaks line of sight or stealths successfully.
+ * - WINDUP: A visual tell before an attack. The boss stops moving and prepares to strike. 
+ *           Typical duration: 40-80 frames.
+ * - ATTACK: The active phase of the vine lash or strike. Damage is calculated here.
+ *           Typical duration: 20-40 frames.
+ * - COOLDOWN: Recovery period after an attack where the boss cannot move or attack.
+ *             Typical duration: 80-120 frames.
+ * - STUNNED: The boss is temporarily incapacitated (e.g., by High Beam).
+ *            Typical duration: 60 frames.
+ */
+export type BossAIState = 'IDLE' | 'WANDER' | 'CHASE' | 'WINDUP' | 'ATTACK' | 'COOLDOWN' | 'STUNNED';
+
+export interface VineAttack {
+    active: boolean;
+    targetX: number;
+    targetY: number;
+    progress: number; // 0 to 1 animation progress
 }
 
 export interface BossState {
@@ -92,4 +124,16 @@ export interface BossState {
   y: number;
   stunned: boolean;
   stunTimer: number;
+  lastHit: number; 
+  
+  // AI State Machine
+  aiState: BossAIState;
+  stateTimer: number;
+  
+  // Vine System (Replaces projectiles)
+  vineAttack: VineAttack;
+
+  // Emotional System
+  mutterText: string | null;
+  mutterTimer: number;
 }

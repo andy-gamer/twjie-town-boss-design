@@ -1,19 +1,31 @@
 
+
 import { RoomId, RoomData, Entity } from './types';
 
 // --- CONFIG ---
-export const PLAYER_SPEED = 6;
-export const SPRINT_SPEED = 10;
-export const BOSS_SPEED_NORMAL = 1.5; // When light is off
-export const BOSS_SPEED_AGGRO = 4.5;  // When light is on (Phototaxis)
+export const PLAYER_SPEED = 3.5; 
+export const SPRINT_SPEED = 6.0; 
+export const CROUCH_SPEED = 2.0;
+export const JUMP_FORCE = 0; // Disabled jumping
+export const GRAVITY = 0.8;
+
+// Rebalanced for Light/Dark Logic - Treant Style (Very Slow)
+export const BOSS_SPEED_SCARED = 0.1; // High Beam (Scared) - Frozen/Trembling
+export const BOSS_SPEED_IDLE = 0.3;   // Normal Light (Cautious) - Shambling
+export const BOSS_SPEED_AGGRO = 0.8;  // Dark (Aggressive) - Heavy plodding
+
+export const BOSS_HEAR_RANGE = 250;   
+export const VINE_ATTACK_RANGE = 120; // Approx 2 steps
 
 export const SCREEN_WIDTH = 800;
 export const SCREEN_HEIGHT = 600;
 
 export const MAX_BATTERY = 100;
-export const BATTERY_DRAIN_NORMAL = 0.0; // No drain for normal light
-export const BATTERY_DRAIN_HIGH = 0.1;   // Fast drain for high beam (Reduced from 1.0)
-export const BATTERY_RECHARGE_RATE = 0.3; // Recharges when not using High Beam
+export const BATTERY_DRAIN_NORMAL = 0.0; 
+// Increased drain rate significantly to force short bursts (approx 2.5s duration)
+export const BATTERY_DRAIN_HIGH = 0.6;   
+// Reduced recharge rate to force maneuvering between attacks
+export const BATTERY_RECHARGE_RATE = 0.15; 
 
 export const MAX_STAMINA = 100;
 export const STAMINA_DRAIN_RATE = 0.8;
@@ -47,6 +59,12 @@ const createStairs = (id: string, x: number, y: number, targetY: number, label: 
   targetY, label, color: '#404040'
 });
 
+const createTrap = (id: string, x: number, y: number, label: string): Entity => ({
+  id, type: 'trap', x, y, w: 50, h: 20,
+  interactable: false, visibleInNormal: true, visibleInReveal: true,
+  label, color: '#7f1d1d'
+});
+
 // --- LEVEL DESIGN ---
 export const ROOMS: Record<RoomId, RoomData> = {
   // 1. 公車站 (教學關)
@@ -55,7 +73,7 @@ export const ROOMS: Record<RoomId, RoomData> = {
     name: "深夜公車站",
     width: 800,
     height: 600,
-    backgroundClass: "bg-slate-900", 
+    backgroundClass: "bg-slate-800", 
     entities: [
       {
         id: 'shadow_boy_intro', type: 'npc', x: 600, y: 390, w: 40, h: 80,
@@ -66,6 +84,7 @@ export const ROOMS: Record<RoomId, RoomData> = {
       createProp('bus_sign', 150, 350, 20, 150, '公車站牌', '#64748b'),
       createProp('bench_broken', 400, 450, 100, 40, '長椅', '#475569'),
       createDoor('enter_school', 700, 360, RoomId.LOBBY, 50, '進入校園'),
+      createProp('streetlight', 130, 100, 60, 20, '', '#fcd34d'),
     ]
   },
 
@@ -75,8 +94,14 @@ export const ROOMS: Record<RoomId, RoomData> = {
     name: "大禮堂",
     width: 1600, 
     height: 600,
-    backgroundClass: "bg-stone-900", 
+    backgroundClass: "bg-stone-800", 
     entities: [
+      // High Windows for Light Source
+      { id: 'win_1', type: 'decoration', x: 200, y: 50, w: 80, h: 120, interactable: false, visibleInNormal: true, visibleInReveal: true, color: '#e0f2fe', label: '' },
+      { id: 'win_2', type: 'decoration', x: 600, y: 50, w: 80, h: 120, interactable: false, visibleInNormal: true, visibleInReveal: true, color: '#e0f2fe', label: '' },
+      { id: 'win_3', type: 'decoration', x: 1000, y: 50, w: 80, h: 120, interactable: false, visibleInNormal: true, visibleInReveal: true, color: '#e0f2fe', label: '' },
+      { id: 'win_4', type: 'decoration', x: 1400, y: 50, w: 80, h: 120, interactable: false, visibleInNormal: true, visibleInReveal: true, color: '#e0f2fe', label: '' },
+
       // Left Side
       createDoor('to_hall_left', 50, 360, RoomId.HALL_LEFT, 700, '左側走廊'),
       createDoor('stairs_up_l', 200, 360, RoomId.SEATS_LEFT, 100, '左側樓梯 (2F)'),
@@ -109,7 +134,8 @@ export const ROOMS: Record<RoomId, RoomData> = {
         label: '校訓',
         dialogue: [
           "牆上掛著斑駁的校訓：「誠實、正直、服從」。", 
-          "那個年代的學校總是這樣，壓抑得讓人喘不過氣。"
+          "那個年代的學校總是這樣，壓抑得讓人喘不過氣。",
+          "「服從」兩個字被刻得很深，似乎有人曾無數次用指甲去摳它。"
         ]
       },
       {
@@ -120,7 +146,7 @@ export const ROOMS: Record<RoomId, RoomData> = {
         icon: 'flower',
         dialogue: [
           "（舞台中央，一個瘦小的身影被黑色的荊棘死死纏繞。）", 
-          "（藤蔓延伸到了學校的各個角落... 必須找到源頭斬斷它們。）"
+          "（那些荊棘像是有生命一樣，隨著他的心跳一收一縮。）"
         ]
       },
       {
@@ -137,30 +163,24 @@ export const ROOMS: Record<RoomId, RoomData> = {
     ]
   },
 
-  // 4. 音控室 (事件觸發點)
+  // 4. 音控室
   [RoomId.SOUND_ROOM]: {
     id: RoomId.SOUND_ROOM,
     name: "二樓音控室",
     width: 800,
     height: 600,
-    backgroundClass: "bg-slate-800",
+    backgroundClass: "bg-slate-700",
     entities: [
+       { id: 'win_sr', type: 'decoration', x: 350, y: 50, w: 100, h: 100, interactable: false, visibleInNormal: true, visibleInReveal: true, color: '#e0f2fe', label: '' },
        createDoor('to_seats_left', 50, 360, RoomId.SEATS_LEFT, 700, '左側座位區'),
        createDoor('to_seats_right', 700, 360, RoomId.SEATS_RIGHT, 100, '右側座位區'),
-       
        createProp('console_desk', 300, 400, 200, 60, '控制台', '#334155'),
-       createProp('chair_fallen', 550, 450, 40, 40, '倒下的椅子', '#475569'),
-
        {
          id: ITEMS.YEARBOOK, type: 'item', x: 400, y: 380, w: 40, h: 40,
          interactable: true, visibleInNormal: true, visibleInReveal: true,
          color: '#fbbf24', label: '畢業紀念冊',
          icon: 'book',
-         dialogue: [
-             "（畢業紀念冊。唯獨這一頁... 是你和家豪的合照。）",
-             "（你的臉是清晰的，但家豪的臉上被畫了一個巨大的紅色叉號。）",
-             "（頭好痛——記憶開始瘋狂湧入！）"
-         ]
+         dialogue: ["（畢業紀念冊。唯獨這一頁... 是你和家豪的合照。）"]
        }
     ]
   },
@@ -171,13 +191,12 @@ export const ROOMS: Record<RoomId, RoomData> = {
     name: "二樓左側：哥哥的榮耀",
     width: 800,
     height: 600,
-    backgroundClass: "bg-red-950", 
+    backgroundClass: "bg-red-900",
     entities: [
+      { id: 'win_sl', type: 'decoration', x: 350, y: 50, w: 100, h: 100, interactable: false, visibleInNormal: true, visibleInReveal: true, color: '#e0f2fe', label: '' },
       createDoor('to_lobby_sl', 50, 360, RoomId.LOBBY, 200, '下樓'),
       createDoor('to_sound_sl', 700, 360, RoomId.SOUND_ROOM, 100, '音控室'),
-      
       createProp('cabinet', 250, 300, 80, 180, '獎盃櫃', '#78350f'),
-
       {
         id: 'trophy_shelf', type: 'decoration', x: 350, y: 350, w: 150, h: 100,
         interactable: false, visibleInNormal: true, visibleInReveal: false, 
@@ -204,13 +223,12 @@ export const ROOMS: Record<RoomId, RoomData> = {
     name: "二樓右側：不能哭",
     width: 800,
     height: 600,
-    backgroundClass: "bg-blue-950", 
+    backgroundClass: "bg-blue-900",
     entities: [
+      { id: 'win_sr', type: 'decoration', x: 350, y: 50, w: 100, h: 100, interactable: false, visibleInNormal: true, visibleInReveal: true, color: '#e0f2fe', label: '' },
       createDoor('to_lobby_sr', 700, 360, RoomId.LOBBY, 1250, '下樓'),
       createDoor('to_sound_sr', 50, 360, RoomId.SOUND_ROOM, 600, '音控室'),
-      
       createProp('toy_box', 300, 450, 60, 40, '玩具箱', '#1e3a8a'),
-
       {
         id: 'broken_toys', type: 'decoration', x: 400, y: 450, w: 80, h: 40,
         interactable: false, visibleInNormal: true, visibleInReveal: true,
@@ -237,10 +255,12 @@ export const ROOMS: Record<RoomId, RoomData> = {
     name: "一樓左側：父親的皮帶",
     width: 800,
     height: 600,
-    backgroundClass: "bg-orange-950",
+    backgroundClass: "bg-orange-900",
     entities: [
+      { id: 'win_hl', type: 'decoration', x: 100, y: 50, w: 80, h: 100, interactable: false, visibleInNormal: true, visibleInReveal: true, color: '#e0f2fe', label: '' },
       createDoor('back_lobby_hl', 700, 360, RoomId.LOBBY, 50, '大廳'),
-      
+      createTrap('trap_spikes_1', 300, 480, '腐蝕荊棘'),
+      createTrap('trap_spikes_2', 500, 480, '腐蝕荊棘'),
       {
         id: 'mirror', type: 'decoration', x: 200, y: 300, w: 60, h: 100,
         interactable: false, visibleInNormal: true, visibleInReveal: true,
@@ -261,16 +281,17 @@ export const ROOMS: Record<RoomId, RoomData> = {
     ]
   },
 
-  // 8. 房間 4：藏匿 (1F Right)
+  // 8. 房間 4
   [RoomId.HALL_RIGHT]: {
     id: RoomId.HALL_RIGHT,
     name: "一樓右側：藏身處",
     width: 800,
     height: 600,
-    backgroundClass: "bg-emerald-950",
+    backgroundClass: "bg-emerald-900",
     entities: [
+      { id: 'win_hr', type: 'decoration', x: 600, y: 50, w: 80, h: 100, interactable: false, visibleInNormal: true, visibleInReveal: true, color: '#e0f2fe', label: '' },
       createDoor('back_lobby_hr', 50, 360, RoomId.LOBBY, 1450, '大廳'),
-      
+      createTrap('trap_dark_1', 400, 480, '暗影陷阱'),
       {
         id: 'cleaning_supplies', type: 'decoration', x: 500, y: 400, w: 80, h: 80,
         interactable: false, visibleInNormal: true, visibleInReveal: true,

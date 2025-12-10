@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { DoorOpen, Ghost, Lock, User, Sparkles, AlertOctagon, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { DoorOpen, Ghost, Lock, User, Sparkles, AlertOctagon, ArrowUpCircle, ArrowDownCircle, AlertTriangle } from 'lucide-react';
 import { Entity } from '../types';
 
 // Helper for Interaction Hint
@@ -19,6 +20,26 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
 
     if (isInventoryItem) return null; // Already picked up
     if (!isVisible) return null;
+
+    // --- TRAPS ---
+    if (type === 'trap') {
+        return (
+            <div className="absolute flex flex-col items-center justify-end z-10"
+                 style={{ left: x, top: y, width: w, height: h }}>
+                 <div className="relative w-full h-full flex items-center justify-center animate-pulse">
+                     <AlertTriangle size={16} className="text-red-900 absolute -top-4 opacity-50" />
+                     {/* Spikes Visual */}
+                     <div className="flex gap-1 w-full h-full items-end justify-between">
+                         <div className="w-1 h-6 bg-red-950 triangle-clip"></div>
+                         <div className="w-1 h-8 bg-red-900 triangle-clip"></div>
+                         <div className="w-1 h-5 bg-red-950 triangle-clip"></div>
+                         <div className="w-1 h-7 bg-red-900 triangle-clip"></div>
+                         <div className="w-1 h-4 bg-red-950 triangle-clip"></div>
+                     </div>
+                 </div>
+            </div>
+        );
+    }
 
     // --- STAIRS ---
     if (type === 'stairs') {
@@ -121,15 +142,17 @@ export const EntityView = React.memo(({ entity, isRevealing, isInventoryItem, is
 
     // --- BOUND JIAHAO ---
     if (id === 'jiahao_bound') {
+        const pulseClass = isNear ? 'animate-[pulse_0.5s_infinite]' : 'animate-pulse';
         return (
              <div className="absolute" style={{ left: x, top: y, width: w, height: h }}>
-                <div className="absolute -top-[200px] left-1/2 -translate-x-1/2 w-[200px] h-[400px] bg-gradient-to-b from-purple-500/20 via-transparent to-transparent pointer-events-none blur-xl" />
+                <div className={`absolute -top-[200px] left-1/2 -translate-x-1/2 w-[200px] h-[400px] bg-gradient-to-b from-purple-500/20 via-transparent to-transparent pointer-events-none blur-xl ${pulseClass}`} />
                 
                 <div className="relative w-full h-full flex flex-col items-center justify-end">
-                     <div className="absolute inset-0 bg-purple-600/20 blur-2xl animate-pulse rounded-full" />
+                     {/* Pulsing Aura - Intensifies when near */}
+                     <div className={`absolute inset-0 bg-purple-600/30 blur-3xl rounded-full transition-all duration-300 ${isNear ? 'opacity-90 scale-150' : 'opacity-40 scale-100 animate-pulse'}`} />
                      
                      <div className="relative z-10 w-24 h-40 bg-black rounded-t-full flex items-center justify-center border-x border-t border-purple-500/30 shadow-[0_0_30px_rgba(168,85,247,0.4)] overflow-hidden">
-                         <User className="text-purple-900 opacity-80 w-16 h-16 translate-y-4" />
+                         <User className={`text-purple-900 opacity-80 w-16 h-16 translate-y-4 ${isNear ? 'animate-bounce' : ''}`} />
                      </div>
                      
                      <div className="absolute -top-6 animate-bounce">
