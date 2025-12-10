@@ -41,9 +41,9 @@ export const WorldRenderer = ({
     const playerScreenY = player.y + player.h / 3; 
 
     // Light Logic:
-    let maskSize = '200px'; 
-    // Brighter ambient light: Opacity reduced from 0.6/0.9 to 0.4/0.75
-    let maskColor = 'transparent 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.75) 90%'; 
+    let maskSize = '250px'; // Increased base visibility (was 150px)
+    // Brighter ambient light: Opacity reduced drastically for "Off" state
+    let maskColor = 'transparent 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.5) 90%'; 
     
     // Low Battery Flicker
     const isLowBattery = player.battery < 20 && player.flashlightOn;
@@ -57,12 +57,13 @@ export const WorldRenderer = ({
         } else {
              // Standard Beam (F)
              maskSize = '300px';
-             maskColor = `transparent 5%, rgba(0,0,0,${0.2 * flickerOpacity}) 40%, rgba(0,0,0,${0.8 * flickerOpacity}) 80%`;
+             maskColor = `transparent 5%, rgba(0,0,0,${0.1 * flickerOpacity}) 40%, rgba(0,0,0,${0.8 * flickerOpacity}) 80%`;
         }
     } else {
         // Off or Empty Battery (Dimly lit, visible)
-        maskSize = '150px';
-        maskColor = 'transparent 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.7) 90%';
+        // Increased size and transparency for better navigation without light
+        maskSize = '250px';
+        maskColor = 'transparent 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.5) 90%';
     }
 
     return (

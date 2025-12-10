@@ -372,10 +372,28 @@ export default function App() {
 
     if (candidates.length === 0) return;
 
-    // Sort closest
+    // Sort closest, but prioritise Items/NPCs over Doors
     candidates.sort((a, b) => {
         const distA = Math.hypot((player.x + player.w/2) - (a.x + a.w/2), (player.y + player.h/2) - (a.y + a.h/2));
         const distB = Math.hypot((player.x + player.w/2) - (b.x + b.w/2), (player.y + player.h/2) - (b.y + b.h/2));
+        
+        // Priority Scoring: Lower is better
+        // 1. Items (Most important to pick up first)
+        // 2. NPC/Decoration (Dialogue/Story)
+        // 3. Doors/Stairs (Leave room - should be last resort if crowded)
+        const getPriority = (type: string) => {
+            if (type === 'item' || type === 'boss_altar') return 1;
+            if (type === 'npc' || type === 'decoration') return 2;
+            return 3;
+        };
+
+        const priorityA = getPriority(a.type);
+        const priorityB = getPriority(b.type);
+
+        if (priorityA !== priorityB) {
+            return priorityA - priorityB;
+        }
+
         return distA - distB;
     });
 
